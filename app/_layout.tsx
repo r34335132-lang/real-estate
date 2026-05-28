@@ -6,7 +6,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,13 +15,53 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GuestGateModal } from '@/components/GuestGateModal';
-import { AppProvider } from '@/context/AppContext';
+import { AppProvider, useApp } from '@/context/AppContext';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { isAuthenticated, authLoading, isGuest, hasCompletedOnboarding } = useApp();
+  const segments = useSegments();
+
+  useEffect(() => {
+    // 1. Si está cargando la sesión de la base de datos, no hacemos nada
+    if (authLoading) return;
+
+    // 2. Revisamos en qué parte de la app está el usuario
+    const inRoot = segments.length === 0;
+    const isIndex = segments[0] === 'index' || inRoot;
+    const isOnboarding = segments[0] === 'onboarding';
+
+    if (!isAuthenticated) {
+      // 3. Si NO hay sesión (Cerró sesión), lo forzamos al index
+      if (!isIndex) {
+        router.replace('/');
+      }
+    } else {
+      // 4. Si SÍ hay sesión (Invitado o Usuario)
+      if (isGuest) {
+        // Invitados no hacen onboarding, van directo a los tabs
+        if (isIndex || isOnboarding) {
+          router.replace('/(tabs)');
+        }
+      } else {
+        // Usuarios verifican onboarding
+        if (!hasCompletedOnboarding) {
+          if (!isOnboarding) {
+            router.replace('/onboarding');
+          }
+        } else {
+          // Todo listo, van a los tabs
+          if (isIndex || isOnboarding) {
+            router.replace('/(tabs)');
+          }
+        }
+      }
+    }
+  }, [isAuthenticated, authLoading, isGuest, hasCompletedOnboarding, segments]);
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />

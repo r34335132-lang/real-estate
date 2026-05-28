@@ -8,11 +8,10 @@ import { useApp } from '@/context/AppContext';
 export function GuestGateModal() {
   const { guestGate, hideGuestGate, logout } = useApp(); 
 
-  const handleCreateAccount = async () => {
+const handleCreateAccount = async () => {
     hideGuestGate();
-    // Destruimos la sesión de invitado (el nuevo AuthGuard se encarga del resto sin crashear)
     await logout(); 
-    router.replace('/');
+    // ELIMINAR el router.replace('/') de aquí.
   };
 
   return (

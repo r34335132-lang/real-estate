@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router'; // <-- Usamos useFocusEffect
+import { router, useFocusEffect } from 'expo-router'; 
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +51,7 @@ export default function WelcomeScreen() {
     isAuthenticated,
     hasCompletedOnboarding,
     authLoading,
+    isGuest, // <-- Extraemos isGuest para guiarlo bien
   } = useApp();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -73,7 +74,6 @@ export default function WelcomeScreen() {
     ]).start();
   }, []);
 
-  // Esto resetea la pantalla cuando vuelves al inicio tras cerrar sesión
   useFocusEffect(
     React.useCallback(() => {
       setMode('welcome');
@@ -85,9 +85,14 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace(hasCompletedOnboarding ? routes.tabs : routes.onboarding);
+      // SI ES INVITADO, va directo a los tabs. SI NO LO ES, verificamos el onboarding.
+      if (isGuest) {
+        router.replace(routes.tabs);
+      } else {
+        router.replace(hasCompletedOnboarding ? routes.tabs : routes.onboarding);
+      }
     }
-  }, [isAuthenticated, hasCompletedOnboarding, authLoading]);
+  }, [isAuthenticated, hasCompletedOnboarding, authLoading, isGuest]);
 
   const handleAuthSubmit = async () => {
     setError(null);
@@ -124,7 +129,6 @@ export default function WelcomeScreen() {
     );
   }
 
-  // Previene ver el formulario mientras enruta hacia las tabs
   if (isAuthenticated) {
     return <View style={styles.container} />;
   }
