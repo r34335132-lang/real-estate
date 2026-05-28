@@ -4,13 +4,16 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 import { useApp } from '@/context/AppContext';
+import { setAuthIntent } from '@/lib/authStorage';
 
 export function GuestGateModal() {
   const { guestGate, hideGuestGate, logout } = useApp(); 
 
-const handleCreateAccount = async () => {
+  const handleCreateAccount = async () => {
     hideGuestGate();
+    await setAuthIntent('register');
     await logout();
+    router.replace('/');
   };
 
   return (

@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Tabs } from 'expo-router'; 
+import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
@@ -98,7 +98,6 @@ function ClassicTabLayout() {
 export default function TabLayout() {
   const { authLoading } = useApp();
 
-  // Solo mostramos carga si aún se está leyendo la memoria del teléfono al abrir la app
   if (authLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#071B33', justifyContent: 'center', alignItems: 'center' }}>

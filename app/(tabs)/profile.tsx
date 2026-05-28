@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
@@ -14,6 +14,7 @@ import {
   PROPERTIES,
 } from '@/data/mock';
 import Images from '@/constants/images';
+import { setAuthIntent } from '@/lib/authStorage';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
 
@@ -48,12 +49,16 @@ export default function ProfileScreen() {
     invitado: 'Modo invitado',
   };
 
-const handleLogout = async () => {
+  const handleLogout = async () => {
+    await setAuthIntent('login');
     await logout();
+    router.replace('/');
   };
 
   const handleGuestExit = async () => {
-    await logout(); 
+    await setAuthIntent('register');
+    await logout();
+    router.replace('/');
   };
 
   const handleUpdateAvatar = async () => {
@@ -298,6 +303,7 @@ const handleLogout = async () => {
             <TouchableOpacity
               key={i}
               style={[styles.actionBtn, { backgroundColor: colors.card }]}
+              // Para navegar A OTRAS PARTES (que no sea logout) sí mantenemos el router.push, eso no afecta.
               onPress={() => {
                 if ('route' in action && action.route) router.push(action.route as never);
               }}
@@ -333,6 +339,7 @@ const handleLogout = async () => {
               <TouchableOpacity
                 key={prop.id}
                 style={[styles.propRow, { backgroundColor: colors.card }]}
+                // router.push de navegación normal está bien.
                 onPress={() => router.push(`/property/${prop.id}`)}
                 activeOpacity={0.85}
               >

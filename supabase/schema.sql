@@ -173,6 +173,7 @@ ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE legal_requests ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "users_select_all" ON users FOR SELECT USING (true);
+CREATE POLICY "users_insert_own" ON users FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "brokers_select_all" ON broker_profiles FOR SELECT USING (true);

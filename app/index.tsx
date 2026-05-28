@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,13 +13,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router'; 
+import { router } from 'expo-router'; 
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import Images from '@/constants/images';
 import { UserRole } from '@/data/types';
+import { AUTH_STORAGE_KEYS, consumeAuthIntent } from '@/lib/authStorage';
 import { useSupabase } from '@/lib/env';
 import { routes } from '@/lib/routes';
 
@@ -48,11 +50,12 @@ export default function WelcomeScreen() {
     signUp,
     loginAsGuest,
     loginWithRoleDemo,
-    isAuthenticated,
-    hasCompletedOnboarding,
+    sessionKind,
     authLoading,
-    isGuest, // <-- Extraemos isGuest para guiarlo bien
+    hasCompletedOnboarding,
   } = useApp();
+
+  const [authIntent, setAuthIntent] = useState<'login' | 'register' | null>(null);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -74,14 +77,31 @@ export default function WelcomeScreen() {
     ]).start();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      setMode('welcome');
-      setEmail('');
-      setPassword('');
-      setError(null);
-    }, [])
-  );
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const intent = await consumeAuthIntent();
+      if (!active) return;
+      setAuthIntent(intent);
+      if (intent === 'login') setMode('login');
+      else if (intent === 'register') setMode('register');
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (authIntent === 'login' || authIntent === 'register') return;
+    if (sessionKind === 'none') return;
+
+    if (sessionKind === 'guest') {
+      router.replace(routes.tabs as any);
+    } else {
+      router.replace(hasCompletedOnboarding ? (routes.tabs as any) : (routes.onboarding as any));
+    }
+  }, [sessionKind, authLoading, authIntent, hasCompletedOnboarding]);
 
   const handleAuthSubmit = async () => {
     setError(null);
@@ -102,7 +122,18 @@ export default function WelcomeScreen() {
     
     setSubmitting(false);
 
-    if (err) setError(err);
+    if (err) {
+      setError(err);
+      return;
+    }
+
+    setAuthIntent(null);
+    if (mode === 'register') {
+      router.replace(routes.onboarding as any);
+      return;
+    }
+    const onboarded = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding);
+    router.replace(onboarded === 'true' ? (routes.tabs as any) : (routes.onboarding as any));
   };
 
   const handleGuest = async () => {
@@ -118,7 +149,7 @@ export default function WelcomeScreen() {
     );
   }
 
-  if (isAuthenticated) {
+  if (sessionKind !== 'none' && authIntent !== 'login' && authIntent !== 'register') {
     return <View style={styles.container} />;
   }
 
@@ -284,6 +315,7 @@ export default function WelcomeScreen() {
   );
 }
 
+// ... styles omitidos (se quedan exactamente igual que antes) ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#071B33' },
   centered: { alignItems: 'center', justifyContent: 'center' },
@@ -291,116 +323,39 @@ const styles = StyleSheet.create({
   bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(7,27,51,0.88)' },
   content: { flex: 1, paddingHorizontal: 24 },
   logoSection: { alignItems: 'center', paddingTop: 8, marginBottom: 16 },
-  logoMark: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#0F6BFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
+  logoMark: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#0F6BFF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   logoMarkText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: '#fff' },
   logoTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 3, marginBottom: 8 },
   goldLine: { width: 40, height: 3, backgroundColor: '#C8A96B', borderRadius: 2, marginBottom: 8 },
   tagline: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.55)' },
-  rolesLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_500Medium',
-    color: 'rgba(255,255,255,0.45)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-  },
+  rolesLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 1 },
+  roleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, gap: 12 },
   roleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   roleInfo: { flex: 1 },
   roleLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#fff' },
-  guestCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(200,169,107,0.35)',
-    backgroundColor: 'rgba(200,169,107,0.1)',
-    marginTop: 8,
-  },
+  guestCard: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(200,169,107,0.35)', backgroundColor: 'rgba(200,169,107,0.1)', marginTop: 8 },
   guestInner: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  guestIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(200,169,107,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  guestIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(200,169,107,0.2)', alignItems: 'center', justifyContent: 'center' },
   guestTextWrap: { flex: 1 },
   guestTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
   guestDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.55)' },
   footer: { gap: 10, marginTop: 12 },
-  registerBtn: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
+  registerBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   registerText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.85)' },
   formSection: { gap: 12, paddingBottom: 12 },
   formBack: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   formBackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.7)' },
   formTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: '#fff' },
-  fieldLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: 'rgba(255,255,255,0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
+  fieldLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.8 },
   rolePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  rolePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
+  rolePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   rolePillActive: { backgroundColor: '#0F6BFF', borderColor: '#0F6BFF' },
   rolePillText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.7)' },
   rolePillTextActive: { color: '#fff' },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   input: { flex: 1, fontSize: 15, fontFamily: 'Inter_400Regular', color: '#fff', paddingVertical: 14 },
-  submitBtn: {
-    backgroundColor: '#0F6BFF',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
+  submitBtn: { backgroundColor: '#0F6BFF', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   submitText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#fff' },
   errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: '#FCA5A5', textAlign: 'center' },
-  terms: {
-    fontSize: 10,
-    fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.35)',
-    textAlign: 'center',
-    marginTop: 8,
-  },
+  terms: { fontSize: 10, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 8 },
 });
