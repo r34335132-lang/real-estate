@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { useApp } from '@/context/AppContext';
 import { PropertyCategory } from '@/data/mock';
 import { createProperty } from '@/data/services/propertyService';
 import { useSupabase } from '@/lib/env';
+import { pickAndUploadImage } from '@/lib/storage';
 
 const CATEGORY_OPTIONS: { slug: PropertyCategory; label: string }[] = [
   { slug: 'terreno', label: 'Terreno' },
@@ -35,7 +37,9 @@ export default function PublishScreen() {
   const insets = useSafeAreaInsets();
   const { role } = useApp();
   const queryClient = useQueryClient();
+  
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
@@ -44,6 +48,24 @@ export default function PublishScreen() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<PropertyCategory>('casa');
   const [status, setStatus] = useState('En Venta');
+  const [images, setImages] = useState<string[]>([]);
+
+  const handleAddPhoto = async () => {
+    if (images.length >= 20) return Alert.alert('Límite', 'Máximo 20 imágenes.');
+    
+    try {
+      setUploadingImage(true);
+      const url = await pickAndUploadImage('properties');
+      
+      if (url) {
+        setImages((prev) => [...prev, url]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo subir la imagen al servidor.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handlePublish = async () => {
     if (!title.trim() || !price.trim() || !location.trim()) {
@@ -64,6 +86,8 @@ export default function PublishScreen() {
           city: location.split(',')[0]?.trim() ?? location,
           state: location.split(',')[1]?.trim() ?? '',
           size_m2: Number(area.replace(/,/g, '')) || 0,
+          // Dependiendo de tu BD, puedes enviar el array de imágenes aquí
+          // images: images, 
         });
         await queryClient.invalidateQueries({ queryKey: ['properties'] });
       }
@@ -76,6 +100,7 @@ export default function PublishScreen() {
       setLocation('');
       setArea('');
       setDescription('');
+      setImages([]);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo publicar');
     } finally {
@@ -268,14 +293,36 @@ export default function PublishScreen() {
 
         {/* Photo Upload */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Fotografías</Text>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>
+            Fotografías ({images.length}/20)
+          </Text>
+          
+          {/* Muestra galería de miniaturas subidas */}
+          {images.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 10 }}>
+              {images.map((imgUrl, idx) => (
+                <View key={idx} style={{ position: 'relative' }}>
+                  <Image source={{ uri: imgUrl }} style={{ width: 80, height: 80, borderRadius: 10 }} />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
           <TouchableOpacity
             style={[styles.photoUpload, { backgroundColor: colors.card, borderColor: colors.border }]}
             activeOpacity={0.8}
+            onPress={handleAddPhoto}
+            disabled={uploadingImage}
           >
-            <Feather name="camera" size={28} color={colors.mutedForeground} />
-            <Text style={[styles.photoText, { color: colors.mutedForeground }]}>Agregar fotos</Text>
-            <Text style={[styles.photoHint, { color: colors.border }]}>Hasta 20 imágenes</Text>
+            {uploadingImage ? (
+              <ActivityIndicator color={colors.mutedForeground} />
+            ) : (
+              <>
+                <Feather name="camera" size={28} color={colors.mutedForeground} />
+                <Text style={[styles.photoText, { color: colors.mutedForeground }]}>Agregar foto</Text>
+                <Text style={[styles.photoHint, { color: colors.border }]}>Hasta 20 imágenes</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 

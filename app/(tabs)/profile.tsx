@@ -1,5 +1,5 @@
-import React from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Alert, ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,18 +14,33 @@ import {
   PROPERTIES,
 } from '@/data/mock';
 import Images from '@/constants/images';
+import { pickAndUploadImage } from '@/lib/storage';
+import { getSupabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { role, user, isGuest, logout, favorites, preferences } = useApp();
+  
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any)?.avatar_url || (user as any)?.user_metadata?.avatar_url || null);
+
+  useEffect(() => {
+    if (user) {
+      // Intenta obtener la foto de la tabla o de los metadatos de Supabase Auth
+      const photo = (user as any)?.avatar_url || (user as any)?.user_metadata?.avatar_url || null;
+      setAvatarUrl(photo);
+    } else {
+      setAvatarUrl(null);
+    }
+  }, [user]);
 
   const broker = BROKERS[0];
   const myProperties = PROPERTIES.filter((p) => p.broker_id === 'b1').slice(0, 3);
   const favoriteProps = PROPERTIES.filter((p) => favorites.includes(p.id));
   const buyerAppointments = MOCK_APPOINTMENTS.filter((a) => a.user_id === 'u-buyer');
 
-  const displayName = user?.full_name ?? 'Usuario';
+  const displayName = user?.full_name || (user as any)?.user_metadata?.full_name || 'Usuario';
   const roleLabels: Record<string, string> = {
     admin: 'Administrador',
     broker: broker.title,
@@ -36,7 +51,50 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    setTimeout(() => {
+      router.replace('/');
+    }, 0);
+  };
+
+  // <-- NUEVA FUNCIÓN PARA EL INVITADO -->
+  const handleGuestExit = async () => {
+    await logout(); // Borramos el rastro del invitado
+    setTimeout(() => {
+      router.replace('/'); // Ahora sí vamos al login
+    }, 0);
+  };
+
+  const handleUpdateAvatar = async () => {
+    if (isGuest) return Alert.alert('Aviso', 'Crea una cuenta para cambiar tu foto.');
+    
+    try {
+      setUploadingAvatar(true);
+      const url = await pickAndUploadImage(`avatars/${user?.id || 'default'}`);
+      
+      if (url) {
+        const supabase = getSupabase();
+        
+        // 1. Guardar en los Metadatos de Autenticación de Supabase (MÉTODO MÁS SEGURO)
+        await supabase.auth.updateUser({
+          data: { avatar_url: url }
+        });
+
+        // 2. Intentar guardar en la tabla pública (users o profiles)
+        // Cambia 'users' por 'profiles' si tu tabla se llama diferente
+        await supabase
+          .from('users') 
+          .update({ avatar_url: url })
+          .eq('id', user?.id);
+
+        setAvatarUrl(url);
+        Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudo subir la foto.');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   if (isGuest) {
@@ -51,10 +109,11 @@ export default function ProfileScreen() {
             <Text style={styles.guestMsg}>
               Explora propiedades libremente. Crea una cuenta para guardar favoritos, contactar brokers y agendar visitas.
             </Text>
-            <TouchableOpacity style={styles.ctaPrimary} onPress={() => router.replace('/')} activeOpacity={0.88}>
+            {/* <-- AQUÍ APLICAMOS LA FUNCIÓN PARA SALIR DE INVITADO --> */}
+            <TouchableOpacity style={styles.ctaPrimary} onPress={handleGuestExit} activeOpacity={0.88}>
               <Text style={styles.ctaPrimaryText}>Crear cuenta</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ctaSecondary} onPress={() => router.replace('/')} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.ctaSecondary} onPress={handleGuestExit} activeOpacity={0.8}>
               <Text style={styles.ctaSecondaryText}>Iniciar sesión</Text>
             </TouchableOpacity>
           </View>
@@ -90,12 +149,26 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.profileCenter}>
-          <View style={styles.avatarWrap}>
-            <Image source={isBroker ? broker.image : Images.broker1} style={styles.avatar} />
+          <TouchableOpacity 
+            style={styles.avatarWrap} 
+            onPress={handleUpdateAvatar} 
+            activeOpacity={0.8}
+            disabled={uploadingAvatar}
+          >
+            {uploadingAvatar ? (
+               <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A2E44' }]}>
+                 <ActivityIndicator color="#C8A96B" />
+               </View>
+            ) : (
+               <Image 
+                 source={avatarUrl ? { uri: avatarUrl } : (isBroker ? broker.image : Images.broker1)} 
+                 style={styles.avatar} 
+               />
+            )}
             <View style={styles.verifiedBadge}>
-              <Feather name="check" size={10} color="#fff" />
+              <Feather name="camera" size={10} color="#fff" />
             </View>
-          </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{displayName}</Text>
           <View style={styles.rolePill}>
             <Feather
@@ -343,10 +416,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#22C55E',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#0F6BFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
