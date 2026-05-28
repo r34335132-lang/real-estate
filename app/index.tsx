@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router'; // <-- Usamos useFocusEffect
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -52,8 +52,10 @@ export default function WelcomeScreen() {
     hasCompletedOnboarding,
     authLoading,
   } = useApp();
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +72,16 @@ export default function WelcomeScreen() {
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  // Esto resetea la pantalla cuando vuelves al inicio tras cerrar sesión
+  useFocusEffect(
+    React.useCallback(() => {
+      setMode('welcome');
+      setEmail('');
+      setPassword('');
+      setError(null);
+    }, [])
+  );
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -93,6 +105,7 @@ export default function WelcomeScreen() {
       mode === 'login'
         ? await signIn(email, password)
         : await signUp(email, password, name.trim(), registerRole);
+    
     setSubmitting(false);
 
     if (err) setError(err);
@@ -109,6 +122,11 @@ export default function WelcomeScreen() {
         <ActivityIndicator size="large" color="#0F6BFF" />
       </View>
     );
+  }
+
+  // Previene ver el formulario mientras enruta hacia las tabs
+  if (isAuthenticated) {
+    return <View style={styles.container} />;
   }
 
   return (

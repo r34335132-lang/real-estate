@@ -27,7 +27,6 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (user) {
-      // Intenta obtener la foto de la tabla o de los metadatos de Supabase Auth
       const photo = (user as any)?.avatar_url || (user as any)?.user_metadata?.avatar_url || null;
       setAvatarUrl(photo);
     } else {
@@ -51,17 +50,10 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    setTimeout(() => {
-      router.replace('/');
-    }, 0);
   };
 
-  // <-- NUEVA FUNCIÓN PARA EL INVITADO -->
   const handleGuestExit = async () => {
-    await logout(); // Borramos el rastro del invitado
-    setTimeout(() => {
-      router.replace('/'); // Ahora sí vamos al login
-    }, 0);
+    await logout();
   };
 
   const handleUpdateAvatar = async () => {
@@ -69,31 +61,42 @@ export default function ProfileScreen() {
     
     try {
       setUploadingAvatar(true);
+      // 1. Subir al Storage (Bucket)
       const url = await pickAndUploadImage(`avatars/${user?.id || 'default'}`);
       
-      if (url) {
-        const supabase = getSupabase();
-        
-        // 1. Guardar en los Metadatos de Autenticación de Supabase (MÉTODO MÁS SEGURO)
-        await supabase.auth.updateUser({
-          data: { avatar_url: url }
-        });
+      if (!url) {
+        setUploadingAvatar(false); // El usuario canceló
+        return; 
+      }
 
-        // 2. Intentar guardar en la tabla pública (users o profiles)
-        // Cambia 'users' por 'profiles' si tu tabla se llama diferente
-        await supabase
-          .from('users') 
-          .update({ avatar_url: url })
-          .eq('id', user?.id);
+      // 2. ACTUALIZACIÓN OPTIMISTA: Mostramos la foto y quitamos spinner INMEDIATAMENTE
+      setAvatarUrl(url);
+      setUploadingAvatar(false);
 
-        setAvatarUrl(url);
+      // 3. Guardar en Base de Datos en segundo plano
+      const supabase = getSupabase();
+      
+      await supabase.auth.updateUser({
+        data: { avatar_url: url }
+      });
+
+      // Intentar guardar en la tabla pública
+      const { error: dbError } = await supabase
+        .from('users') // <-- Cambia a 'profiles' si tu tabla se llama distinto
+        .update({ avatar_url: url })
+        .eq('id', user?.id);
+
+      if (dbError) {
+        console.log("Error de permisos en DB:", dbError);
+        Alert.alert('Aviso', 'La foto se actualizó visualmente, pero tu base de datos rechazó el cambio. Revisa las políticas RLS en Supabase.');
+      } else {
         Alert.alert('Éxito', 'Foto de perfil actualizada correctamente.');
       }
+
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'No se pudo subir la foto.');
-    } finally {
       setUploadingAvatar(false);
+      Alert.alert('Error', 'No se pudo subir la foto.');
     }
   };
 
@@ -109,7 +112,6 @@ export default function ProfileScreen() {
             <Text style={styles.guestMsg}>
               Explora propiedades libremente. Crea una cuenta para guardar favoritos, contactar brokers y agendar visitas.
             </Text>
-            {/* <-- AQUÍ APLICAMOS LA FUNCIÓN PARA SALIR DE INVITADO --> */}
             <TouchableOpacity style={styles.ctaPrimary} onPress={handleGuestExit} activeOpacity={0.88}>
               <Text style={styles.ctaPrimaryText}>Crear cuenta</Text>
             </TouchableOpacity>

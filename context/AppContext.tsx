@@ -191,14 +191,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [applyUser],
   );
 
+  // <-- FUNCIÓN DE LOGOUT OPTIMIZADA -->
   const logout = useCallback(async () => {
     await signOut();
+    // Limpiamos los estados primero para que la app sepa instantáneamente que ya no hay sesión
     setIsAuthenticated(false);
     setUser(null);
     setRole('comprador');
     setFavorites([]);
-    await AsyncStorage.multiRemove([STORAGE_KEYS.guest, STORAGE_KEYS.onboarding]);
     setHasCompletedOnboarding(false);
+    // Finalmente limpiamos el storage
+    await AsyncStorage.multiRemove([STORAGE_KEYS.guest, STORAGE_KEYS.onboarding]);
   }, []);
 
   const completeOnboarding = useCallback(async () => {

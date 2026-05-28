@@ -1,25 +1,42 @@
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router'; // <-- Quitamos Redirect e importamos router
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import { Platform, StyleSheet, View, useColorScheme } from 'react-native';
+import React, { useEffect } from 'react'; // <-- Importamos useEffect
+import { Platform, StyleSheet, View, useColorScheme, ActivityIndicator } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import { routes } from '@/lib/routes';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, hasCompletedOnboarding } = useApp();
+  const { isAuthenticated, hasCompletedOnboarding, authLoading } = useApp();
 
-  if (!isAuthenticated) {
-    return <Redirect href="/" />;
-  }
-  if (!hasCompletedOnboarding) {
-    return <Redirect href={routes.onboarding} />;
-  }
-  return <>{children}</>;
+  useEffect(() => {
+    if (authLoading) return;
+
+    // Redirigir de forma segura fuera del ciclo de renderizado de React
+    if (!isAuthenticated) {
+      setTimeout(() => router.replace('/'), 10);
+    } else if (!hasCompletedOnboarding) {
+      setTimeout(() => router.replace(routes.onboarding as any), 10);
+    }
+  }, [isAuthenticated, hasCompletedOnboarding, authLoading]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* SIEMPRE renderizamos children para que Expo Router no tire errores de Layout */}
+      {children}
+      
+      {/* Si está cargando o redirigiendo, ponemos una pantalla azul por encima para ocultar los tabs */}
+      {(authLoading || !isAuthenticated || !hasCompletedOnboarding) && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#071B33', zIndex: 9999, justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#0F6BFF" />
+        </View>
+      )}
+    </View>
+  );
 }
 
 function NativeTabLayout() {
