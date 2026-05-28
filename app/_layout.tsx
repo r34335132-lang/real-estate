@@ -6,7 +6,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack, router, useSegments } from 'expo-router';
+import { Stack, router } from 'expo-router'; // ¡SIN useSegments!
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,43 +23,28 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { isAuthenticated, authLoading, isGuest, hasCompletedOnboarding } = useApp();
-  const segments = useSegments();
 
   useEffect(() => {
-    // 1. Si la app apenas está leyendo la memoria, no hacemos nada.
+    // Si la app está cargando, ni nos movemos
     if (authLoading) return;
 
-    // Detectamos en qué parte de la app estamos
-    const inTabsGroup = segments[0] === '(tabs)';
-    const inOnboarding = segments[0] === 'onboarding';
-
-    if (!isAuthenticated) {
-      // 2. Si NO hay sesión y está adentro de la app, ¡Pa' fuera!
-      if (inTabsGroup || inOnboarding) {
-        setTimeout(() => router.replace('/'), 0);
-      }
-    } else {
-      // 3. Si SÍ hay sesión (Invitado o Registrado)
-      if (isGuest) {
-        // Invitados van directo a los tabs, sin onboarding
-        if (!inTabsGroup) {
-          setTimeout(() => router.replace('/(tabs)'), 0);
-        }
+    // Con el setTimeout salimos del bloque síncrono de renderizado de React
+    // y redirigimos basado 100% en el estado final que te dio AppContext
+    setTimeout(() => {
+      if (!isAuthenticated) {
+        router.replace('/');
+      } else if (isGuest) {
+        router.replace('/(tabs)');
+      } else if (!hasCompletedOnboarding) {
+        router.replace('/onboarding');
       } else {
-        // Usuarios verifican sus preferencias (onboarding)
-        if (!hasCompletedOnboarding) {
-          if (!inOnboarding) {
-            setTimeout(() => router.replace('/onboarding'), 0);
-          }
-        } else {
-          // Todo completo, van a los tabs
-          if (!inTabsGroup) {
-            setTimeout(() => router.replace('/(tabs)'), 0);
-          }
-        }
+        router.replace('/(tabs)');
       }
-    }
-  }, [isAuthenticated, authLoading, isGuest, hasCompletedOnboarding, segments]);
+    }, 0);
+    
+    // Al quitar 'segments' de aquí, aseguramos que este useEffect SOLO corra
+    // cuando en verdad ocurra un Logout, Login o fin del Onboarding.
+  }, [isAuthenticated, authLoading, isGuest, hasCompletedOnboarding]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

@@ -106,19 +106,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const applyUser = useCallback(
     async (u: User, guest = false) => {
-      setUser(u);
-      setRole(u.role);
-      setIsAuthenticated(true);
+      // 1. Cargamos favoritos
       await loadFavorites(guest ? null : u.id, guest);
 
+      let onboarded = false;
+      // 2. Descargamos preferencias si no es invitado
       if (!guest && useSupabase()) {
         const prefs = await fetchPreferences(u.id);
         if (prefs) {
           setPreferencesState(prefs);
-          setHasCompletedOnboarding(true);
+          onboarded = true;
           await AsyncStorage.setItem(STORAGE_KEYS.onboarding, 'true');
         }
       }
+
+      // 3. Actualizamos en bloque
+      setUser(u);
+      setRole(u.role);
+      if (onboarded) setHasCompletedOnboarding(true);
+      setIsAuthenticated(true); 
     },
     [loadFavorites],
   );
@@ -168,9 +174,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { user: u, error } = await signUpWithEmail(email, password, fullName, selectedRole);
       if (error || !u) return error ?? 'Error al registrarse';
       await AsyncStorage.removeItem(STORAGE_KEYS.guest);
-      await applyUser(u);
-      setHasCompletedOnboarding(false);
       await AsyncStorage.removeItem(STORAGE_KEYS.onboarding);
+      setHasCompletedOnboarding(false);
+      await applyUser(u);
       return null;
     },
     [applyUser],
@@ -191,17 +197,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [applyUser],
   );
 
-  // <-- FUNCIÓN DE LOGOUT OPTIMIZADA -->
+  // <-- AQUÍ ESTÁ LA MAGIA: LA FUNCIÓN LOGOUT A PRUEBA DE FALLOS -->
   const logout = useCallback(async () => {
-    await signOut();
-    // Limpiamos los estados primero para que la app sepa instantáneamente que ya no hay sesión
+    // 1. Limpiamos TODOS los estados primero para que la app reaccione y te saque al instante
     setIsAuthenticated(false);
     setUser(null);
     setRole('comprador');
     setFavorites([]);
     setHasCompletedOnboarding(false);
-    // Finalmente limpiamos el storage
+    
+    // 2. Limpiamos la memoria del celular
     await AsyncStorage.multiRemove([STORAGE_KEYS.guest, STORAGE_KEYS.onboarding]);
+
+    // 3. Al final cerramos la sesión en la nube, protegido en un try-catch.
+    // Si eres un invitado, esto dará error invisiblemente y la app ya no se trabará.
+    try {
+      await signOut();
+    } catch (e) {
+      console.log("Salida silenciosa: No había sesión activa en Supabase.");
+    }
   }, []);
 
   const completeOnboarding = useCallback(async () => {
