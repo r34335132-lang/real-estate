@@ -48,12 +48,12 @@ export default function ProfileScreen() {
     invitado: 'Modo invitado',
   };
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
     await logout();
   };
 
   const handleGuestExit = async () => {
-    await logout();
+    await logout(); 
   };
 
   const handleUpdateAvatar = async () => {

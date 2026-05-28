@@ -26,36 +26,35 @@ function RootLayoutNav() {
   const segments = useSegments();
 
   useEffect(() => {
-    // 1. Si está cargando la sesión de la base de datos, no hacemos nada
+    // 1. Si la app apenas está leyendo la memoria, no hacemos nada.
     if (authLoading) return;
 
-    // 2. Revisamos en qué parte de la app está el usuario
-    const inRoot = segments.length === 0;
-    const isIndex = segments[0] === 'index' || inRoot;
-    const isOnboarding = segments[0] === 'onboarding';
+    // Detectamos en qué parte de la app estamos
+    const inTabsGroup = segments[0] === '(tabs)';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!isAuthenticated) {
-      // 3. Si NO hay sesión (Cerró sesión), lo forzamos al index
-      if (!isIndex) {
-        router.replace('/');
+      // 2. Si NO hay sesión y está adentro de la app, ¡Pa' fuera!
+      if (inTabsGroup || inOnboarding) {
+        setTimeout(() => router.replace('/'), 0);
       }
     } else {
-      // 4. Si SÍ hay sesión (Invitado o Usuario)
+      // 3. Si SÍ hay sesión (Invitado o Registrado)
       if (isGuest) {
-        // Invitados no hacen onboarding, van directo a los tabs
-        if (isIndex || isOnboarding) {
-          router.replace('/(tabs)');
+        // Invitados van directo a los tabs, sin onboarding
+        if (!inTabsGroup) {
+          setTimeout(() => router.replace('/(tabs)'), 0);
         }
       } else {
-        // Usuarios verifican onboarding
+        // Usuarios verifican sus preferencias (onboarding)
         if (!hasCompletedOnboarding) {
-          if (!isOnboarding) {
-            router.replace('/onboarding');
+          if (!inOnboarding) {
+            setTimeout(() => router.replace('/onboarding'), 0);
           }
         } else {
-          // Todo listo, van a los tabs
-          if (isIndex || isOnboarding) {
-            router.replace('/(tabs)');
+          // Todo completo, van a los tabs
+          if (!inTabsGroup) {
+            setTimeout(() => router.replace('/(tabs)'), 0);
           }
         }
       }

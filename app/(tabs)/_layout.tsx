@@ -4,8 +4,9 @@ import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Platform, StyleSheet, View, useColorScheme } from 'react-native';
+import { Platform, StyleSheet, View, useColorScheme, ActivityIndicator } from 'react-native';
 
+import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 
 function NativeTabLayout() {
@@ -75,62 +76,37 @@ function ClassicTabLayout() {
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="categories"
-        options={{
-          title: 'Categorías',
-          tabBarIcon: ({ color }) => <Feather name="grid" size={22} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Inicio', tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} /> }} />
+      <Tabs.Screen name="categories" options={{ title: 'Categorías', tabBarIcon: ({ color }) => <Feather name="grid" size={22} color={color} /> }} />
       <Tabs.Screen
         name="publish"
         options={{
           title: 'Publicar',
           tabBarIcon: ({ color, focused }) => (
-            <View
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 14,
-                backgroundColor: focused ? '#0F6BFF' : 'rgba(15,107,255,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: -8,
-                borderWidth: focused ? 0 : 1,
-                borderColor: 'rgba(15,107,255,0.4)',
-              }}
-            >
+            <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: focused ? '#0F6BFF' : 'rgba(15,107,255,0.2)', alignItems: 'center', justifyContent: 'center', marginTop: -8, borderWidth: focused ? 0 : 1, borderColor: 'rgba(15,107,255,0.4)' }}>
               <Feather name="plus" size={22} color="#fff" />
             </View>
           ),
         }}
       />
-      <Tabs.Screen
-        name="legal"
-        options={{
-          title: 'Legal',
-          tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="legal" options={{ title: 'Legal', tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }} />
     </Tabs>
   );
 }
 
 export default function TabLayout() {
+  const { authLoading } = useApp();
+
+  // Solo mostramos carga si aún se está leyendo la memoria del teléfono al abrir la app
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#071B33', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#0F6BFF" />
+      </View>
+    );
+  }
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }

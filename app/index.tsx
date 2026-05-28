@@ -83,17 +83,6 @@ export default function WelcomeScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      // SI ES INVITADO, va directo a los tabs. SI NO LO ES, verificamos el onboarding.
-      if (isGuest) {
-        router.replace(routes.tabs);
-      } else {
-        router.replace(hasCompletedOnboarding ? routes.tabs : routes.onboarding);
-      }
-    }
-  }, [isAuthenticated, hasCompletedOnboarding, authLoading, isGuest]);
-
   const handleAuthSubmit = async () => {
     setError(null);
     if (!email.trim() || !password.trim()) {

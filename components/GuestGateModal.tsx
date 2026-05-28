@@ -10,8 +10,7 @@ export function GuestGateModal() {
 
 const handleCreateAccount = async () => {
     hideGuestGate();
-    await logout(); 
-    // ELIMINAR el router.replace('/') de aquí.
+    await logout();
   };
 
   return (
