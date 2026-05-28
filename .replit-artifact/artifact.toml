@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Real Estate JC"
+version = "1.0.0"
+id = "artifacts/real-estate-jc"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 20381
+
+[services.development]
+run = "pnpm --filter @workspace/real-estate-jc run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/real-estate-jc", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/real-estate-jc", "run", "serve" ]
+
+[services.env]
+PORT = "20381"
+BASE_PATH = "/"
