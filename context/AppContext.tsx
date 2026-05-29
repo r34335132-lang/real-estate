@@ -7,13 +7,19 @@ import {
   clearAuthSession,
   restoreSession,
   signInWithEmail,
-  signOut,
   signUpWithEmail,
 } from '@/data/services/authService';
 import { fetchFavoriteIds, toggleFavoriteDb } from '@/data/services/favoriteService';
 import { fetchPreferences, savePreferences } from '@/data/services/preferenceService';
 import { User, UserPreferences, UserRole } from '@/data/types';
-import { AUTH_STORAGE_KEYS, migrateAuthStorageIfNeeded } from '@/lib/authStorage';
+import {
+  AUTH_STORAGE_KEYS,
+  type AuthIntent,
+  clearAuthIntent,
+  migrateAuthStorageIfNeeded,
+  peekAuthIntent,
+  setAuthIntent,
+} from '@/lib/authStorage';
 import { useSupabase } from '@/lib/env';
 
 interface GuestGateConfig {
@@ -33,6 +39,7 @@ interface AppContextType {
   isGuest: boolean;
   preferences: UserPreferences | null;
   hasCompletedOnboarding: boolean;
+  pendingAuthIntent: AuthIntent | null;
   favorites: string[];
   guestGate: GuestGateConfig;
   authLoading: boolean;
@@ -41,6 +48,9 @@ interface AppContextType {
   loginAsGuest: () => Promise<void>;
   loginWithRoleDemo: (role: UserRole) => void;
   logout: () => Promise<void>;
+  exitGuestToAuth: (intent: AuthIntent) => Promise<void>;
+  setPendingAuthIntent: (intent: AuthIntent | null) => Promise<void>;
+  clearPendingAuthIntent: () => Promise<void>;
   setPreferences: (prefs: Omit<UserPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   toggleFavorite: (id: string) => Promise<boolean>;
@@ -72,6 +82,20 @@ const GUEST_MESSAGES: Record<string, { title: string; message: string }> = {
 
 const AppContext = createContext<AppContextType>({} as AppContextType);
 
+async function loadGuestLocalState(): Promise<{
+  preferences: UserPreferences | null;
+  hasOnboarding: boolean;
+}> {
+  const [guestOnboarding, localPrefs] = await Promise.all([
+    AsyncStorage.getItem(AUTH_STORAGE_KEYS.guestOnboarding),
+    AsyncStorage.getItem(AUTH_STORAGE_KEYS.preferences),
+  ]);
+  return {
+    preferences: localPrefs ? (JSON.parse(localPrefs) as UserPreferences) : null,
+    hasOnboarding: guestOnboarding === 'true',
+  };
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('comprador');
   const [user, setUser] = useState<User | null>(null);
@@ -79,6 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [preferences, setPreferencesState] = useState<UserPreferences | null>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [pendingAuthIntent, setPendingAuthIntentState] = useState<AuthIntent | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [guestGate, setGuestGate] = useState<GuestGateConfig>({
     visible: false,
@@ -87,7 +112,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   });
   const [hydrated, setHydrated] = useState(false);
   const sessionKindRef = useRef<SessionKind>('none');
-  const hydratingRef = useRef(false);
 
   useEffect(() => {
     sessionKindRef.current = sessionKind;
@@ -95,6 +119,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = sessionKind !== 'none';
   const isGuest = sessionKind === 'guest';
+
+  const setPendingAuthIntent = useCallback(async (intent: AuthIntent | null) => {
+    if (intent) {
+      await setAuthIntent(intent);
+      setPendingAuthIntentState(intent);
+    } else {
+      await clearAuthIntent();
+      setPendingAuthIntentState(null);
+    }
+  }, []);
+
+  const clearPendingAuthIntent = useCallback(async () => {
+    await clearAuthIntent();
+    setPendingAuthIntentState(null);
+  }, []);
 
   const resetLocalSession = useCallback(() => {
     setUser(null);
@@ -130,19 +169,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await loadFavorites(guest ? null : u.id, guest);
 
       let onboarded = false;
-      if (!guest && useSupabase()) {
+
+      if (guest) {
+        const local = await loadGuestLocalState();
+        if (local.preferences) setPreferencesState(local.preferences);
+        onboarded = local.hasOnboarding;
+      } else if (useSupabase()) {
         const prefs = await fetchPreferences(u.id);
         if (prefs) {
           setPreferencesState(prefs);
           onboarded = true;
           await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
+        } else {
+          const userOnboarding = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding);
+          onboarded = userOnboarding === 'true';
         }
       }
 
       setUser(u);
       setRole(u.role);
       setSessionKind(guest ? 'guest' : 'user');
-      if (onboarded) setHasCompletedOnboarding(true);
+      setHasCompletedOnboarding(onboarded);
     },
     [loadFavorites],
   );
@@ -156,20 +203,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    hydratingRef.current = true;
 
     (async () => {
       try {
         await migrateAuthStorageIfNeeded();
 
-        const [onboarding, guestFlag, localPrefs, skipRestore] = await Promise.all([
+        const [userOnboarding, guestFlag, skipRestore, storedIntent] = await Promise.all([
           AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding),
           AsyncStorage.getItem(AUTH_STORAGE_KEYS.guest),
-          AsyncStorage.getItem(AUTH_STORAGE_KEYS.preferences),
           AsyncStorage.getItem(AUTH_STORAGE_KEYS.skipRestore),
+          peekAuthIntent(),
         ]);
 
-        if (onboarding === 'true') setHasCompletedOnboarding(true);
+        if (!cancelled && storedIntent) {
+          setPendingAuthIntentState(storedIntent);
+        }
 
         if (skipRestore === '1') {
           await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.skipRestore);
@@ -178,6 +226,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const profile = await restoreSession();
           if (!cancelled && profile) {
             if (guestFlag === 'true') await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.guest);
+            await clearPendingAuthIntent();
             await applyUser(profile);
             return;
           }
@@ -189,14 +238,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (!cancelled && localPrefs) setPreferencesState(JSON.parse(localPrefs));
+        if (!cancelled && userOnboarding === 'true') {
+          setHasCompletedOnboarding(true);
+        }
 
         if (!cancelled && !useSupabase()) {
           const local = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.favorites);
           if (local) setFavorites(JSON.parse(local));
+          const localPrefs = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.preferences);
+          if (localPrefs) setPreferencesState(JSON.parse(localPrefs));
         }
       } finally {
-        hydratingRef.current = false;
         if (!cancelled) {
           setAuthLoading(false);
           setHydrated(true);
@@ -206,37 +258,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      hydratingRef.current = false;
     };
-  }, [applyUser]);
+  }, [applyUser, clearPendingAuthIntent]);
 
-  const exitGuestForAuth = useCallback(async () => {
-    await clearAuthSession();
-    await AsyncStorage.multiRemove([AUTH_STORAGE_KEYS.guest]);
-    resetLocalSession();
-  }, [resetLocalSession]);
+  const exitGuestToAuth = useCallback(
+    async (intent: AuthIntent) => {
+      await setPendingAuthIntent(intent);
+      await clearAuthSession();
+      resetLocalSession();
+      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.guest);
+    },
+    [resetLocalSession, setPendingAuthIntent],
+  );
 
   const signIn = useCallback(
     async (email: string, password: string) => {
       if (sessionKindRef.current === 'guest') {
-        await exitGuestForAuth();
+        await exitGuestToAuth('login');
       }
 
       const { user: u, error } = await signInWithEmail(email, password);
       if (error || !u) return error ?? 'Error al iniciar sesión';
 
       await AsyncStorage.multiRemove([AUTH_STORAGE_KEYS.guest, AUTH_STORAGE_KEYS.skipRestore]);
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.authIntent);
+      await clearPendingAuthIntent();
       await applyUser(u);
       return null;
     },
-    [applyUser, exitGuestForAuth],
+    [applyUser, clearPendingAuthIntent, exitGuestToAuth],
   );
 
   const signUp = useCallback(
     async (email: string, password: string, fullName: string, selectedRole: UserRole) => {
       if (sessionKindRef.current === 'guest') {
-        await exitGuestForAuth();
+        await exitGuestToAuth('register');
       }
 
       const { user: u, error } = await signUpWithEmail(email, password, fullName, selectedRole);
@@ -246,20 +301,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AUTH_STORAGE_KEYS.guest,
         AUTH_STORAGE_KEYS.skipRestore,
         AUTH_STORAGE_KEYS.onboarding,
-        AUTH_STORAGE_KEYS.authIntent,
+        AUTH_STORAGE_KEYS.guestOnboarding,
       ]);
       setHasCompletedOnboarding(false);
+      await clearPendingAuthIntent();
       await applyUser(u);
       return null;
     },
-    [applyUser, exitGuestForAuth],
+    [applyUser, clearPendingAuthIntent, exitGuestToAuth],
   );
 
   const loginAsGuest = useCallback(async () => {
     await clearAuthSession();
-    await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.authIntent);
+    await clearPendingAuthIntent();
     await applyGuest();
-  }, [applyGuest]);
+  }, [applyGuest, clearPendingAuthIntent]);
 
   const loginWithRoleDemo = useCallback(
     (r: UserRole) => {
@@ -277,15 +333,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.multiRemove([
       AUTH_STORAGE_KEYS.guest,
       AUTH_STORAGE_KEYS.onboarding,
+      AUTH_STORAGE_KEYS.guestOnboarding,
       AUTH_STORAGE_KEYS.preferences,
       AUTH_STORAGE_KEYS.favorites,
     ]);
-    await signOut();
   }, [resetLocalSession]);
 
   const completeOnboarding = useCallback(async () => {
     setHasCompletedOnboarding(true);
-    await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
+    if (sessionKindRef.current === 'guest') {
+      await AsyncStorage.setItem(AUTH_STORAGE_KEYS.guestOnboarding, 'true');
+    } else {
+      await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
+    }
   }, []);
 
   const setPreferences = useCallback(
@@ -375,6 +435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isGuest,
         preferences,
         hasCompletedOnboarding,
+        pendingAuthIntent,
         favorites,
         guestGate,
         authLoading,
@@ -383,6 +444,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loginAsGuest,
         loginWithRoleDemo,
         logout,
+        exitGuestToAuth,
+        setPendingAuthIntent,
+        clearPendingAuthIntent,
         setPreferences,
         completeOnboarding,
         toggleFavorite,

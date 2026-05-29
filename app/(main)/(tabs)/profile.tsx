@@ -14,14 +14,13 @@ import {
   PROPERTIES,
 } from '@/data/mock';
 import Images from '@/constants/images';
-import { setAuthIntent } from '@/lib/authStorage';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { role, user, isGuest, logout, favorites, preferences } = useApp();
+  const { role, user, isGuest, logout, exitGuestToAuth, favorites, preferences } = useApp();
   
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any)?.avatar_url || (user as any)?.user_metadata?.avatar_url || null);
@@ -50,15 +49,15 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    await setAuthIntent('login');
     await logout();
-    router.replace('/');
   };
 
-  const handleGuestExit = async () => {
-    await setAuthIntent('register');
-    await logout();
-    router.replace('/');
+  const handleGuestRegister = async () => {
+    await exitGuestToAuth('register');
+  };
+
+  const handleGuestLogin = async () => {
+    await exitGuestToAuth('login');
   };
 
   const handleUpdateAvatar = async () => {
@@ -117,10 +116,10 @@ export default function ProfileScreen() {
             <Text style={styles.guestMsg}>
               Explora propiedades libremente. Crea una cuenta para guardar favoritos, contactar brokers y agendar visitas.
             </Text>
-            <TouchableOpacity style={styles.ctaPrimary} onPress={handleGuestExit} activeOpacity={0.88}>
+            <TouchableOpacity style={styles.ctaPrimary} onPress={handleGuestRegister} activeOpacity={0.88}>
               <Text style={styles.ctaPrimaryText}>Crear cuenta</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ctaSecondary} onPress={handleGuestExit} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.ctaSecondary} onPress={handleGuestLogin} activeOpacity={0.8}>
               <Text style={styles.ctaSecondaryText}>Iniciar sesión</Text>
             </TouchableOpacity>
           </View>

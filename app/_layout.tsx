@@ -6,14 +6,13 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router'; // ¡SIN LÓGICA DE NAVEGACIÓN AQUÍ!
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AuthGate } from '@/components/AuthGate';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GuestGateModal } from '@/components/GuestGateModal';
 import { AppProvider } from '@/context/AppContext';
@@ -45,14 +44,10 @@ export default function RootLayout() {
           <AppProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
-                <AuthGate />
                 <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="property/[id]" options={{ headerShown: false }} />
-                  <Stack.Screen name="broker/[id]" options={{ headerShown: false }} />
-                  <Stack.Screen name="category/[slug]" options={{ headerShown: false }} />
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="(main)" />
+                  <Stack.Screen name="+not-found" />
                 </Stack>
                 <GuestGateModal />
               </KeyboardProvider>

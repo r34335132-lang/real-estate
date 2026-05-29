@@ -26,10 +26,7 @@ function mapRow(data: Record<string, unknown>): User {
   };
 }
 
-function profileFromAuthUser(authUser: AuthUser): Omit<User, 'created_at' | 'updated_at'> & {
-  created_at: string;
-  updated_at: string;
-} {
+function profileDraftFromAuthUser(authUser: AuthUser) {
   const email = authUser.email ?? '';
   return {
     id: authUser.id,
@@ -59,41 +56,51 @@ export async function clearAuthSession(): Promise<void> {
   await clearSupabaseAuthStorage();
 }
 
-export async function ensureUserProfile(authUser: AuthUser): Promise<User | null> {
+/** Solo consulta `public.users` (espera al trigger en signUp, sin crear filas). */
+export async function getUserProfile(authUser: AuthUser, retries = 5): Promise<User | null> {
   if (!useSupabase()) return null;
 
   const supabase = getSupabase();
-
-  for (let attempt = 0; attempt < 8; attempt++) {
+  for (let attempt = 0; attempt < retries; attempt++) {
     const { data, error } = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle();
     if (!error && data) return mapRow(data);
-    if (attempt < 7) await sleep(400);
+    if (attempt < retries - 1) await sleep(400);
   }
+  return null;
+}
 
-  const draft = profileFromAuthUser(authUser);
-  const { data: inserted, error: insertError } = await supabase
+/** Inserta perfil en `public.users` — solo durante registro. */
+export async function createUserProfile(authUser: AuthUser): Promise<User | null> {
+  if (!useSupabase()) return null;
+
+  const draft = profileDraftFromAuthUser(authUser);
+  const { data, error } = await getSupabase()
     .from('users')
-    .upsert(
-      {
-        id: draft.id,
-        full_name: draft.full_name,
-        email: draft.email,
-        role: draft.role,
-        phone: draft.phone ?? '',
-        avatar_url: draft.avatar_url ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' },
-    )
+    .insert({
+      id: draft.id,
+      full_name: draft.full_name,
+      email: draft.email,
+      role: draft.role,
+      phone: draft.phone ?? '',
+      avatar_url: draft.avatar_url ?? null,
+    })
     .select()
     .single();
 
-  if (!insertError && inserted) return mapRow(inserted);
+  if (!error && data) return mapRow(data);
 
-  const { data: retry } = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle();
-  if (retry) return mapRow(retry);
+  // El trigger pudo haber creado la fila entre intentos
+  return getUserProfile(authUser, 3);
+}
 
-  return null;
+export async function ensureUserProfile(
+  authUser: AuthUser,
+  options: { createIfMissing: boolean },
+): Promise<User | null> {
+  const existing = await getUserProfile(authUser, options.createIfMissing ? 8 : 5);
+  if (existing) return existing;
+  if (!options.createIfMissing) return null;
+  return createUserProfile(authUser);
 }
 
 export async function signUpWithEmail(
@@ -122,7 +129,6 @@ export async function signUpWithEmail(
   if (error) return { user: null, error: error.message };
   if (!data.user) return { user: null, error: 'No se pudo crear la cuenta' };
 
-  let authUser = data.user;
   let session = data.session;
 
   if (!session) {
@@ -134,12 +140,9 @@ export async function signUpWithEmail(
       await clearAuthSession();
       return {
         user: null,
-        error:
-          signInResult.error.message ||
-          'Cuenta creada pero no hay sesión activa. Intenta iniciar sesión.',
+        error: signInResult.error.message || 'Cuenta creada pero no hay sesión activa. Intenta iniciar sesión.',
       };
     }
-    authUser = signInResult.data.user ?? authUser;
     session = signInResult.data.session;
   }
 
@@ -148,13 +151,13 @@ export async function signUpWithEmail(
     return { user: null, error: 'No se pudo iniciar sesión tras crear la cuenta.' };
   }
 
-  const profile = await ensureUserProfile(session.user);
+  const profile = await ensureUserProfile(session.user, { createIfMissing: true });
   if (!profile) {
     await clearAuthSession();
     return {
       user: null,
       error:
-        'No se pudo crear tu perfil. En Supabase ejecuta migrate-users-insert-policy.sql y el trigger handle_new_user.',
+        'No se pudo crear tu perfil. Ejecuta migrate-users-insert-policy.sql y el trigger handle_new_user en Supabase.',
     };
   }
 
@@ -178,12 +181,12 @@ export async function signInWithEmail(
   if (error) return { user: null, error: error.message };
   if (!data.session?.user) return { user: null, error: 'Credenciales inválidas' };
 
-  const profile = await ensureUserProfile(data.session.user);
+  const profile = await ensureUserProfile(data.session.user, { createIfMissing: false });
   if (!profile) {
     await clearAuthSession();
     return {
       user: null,
-      error: 'No se pudo cargar tu perfil. Revisa las políticas RLS en Supabase.',
+      error: 'Tu cuenta no tiene perfil configurado. Contacta soporte o regístrate de nuevo.',
     };
   }
 
@@ -200,5 +203,11 @@ export async function restoreSession(): Promise<User | null> {
   const { data } = await getSupabase().auth.getSession();
   if (!data.session?.user) return null;
 
-  return ensureUserProfile(data.session.user);
+  const profile = await ensureUserProfile(data.session.user, { createIfMissing: false });
+  if (!profile) {
+    await clearAuthSession();
+    return null;
+  }
+
+  return profile;
 }

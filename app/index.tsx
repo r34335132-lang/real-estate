@@ -13,14 +13,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router'; 
+import { Redirect, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import Images from '@/constants/images';
 import { UserRole } from '@/data/types';
-import { AUTH_STORAGE_KEYS, consumeAuthIntent } from '@/lib/authStorage';
+import { AUTH_STORAGE_KEYS } from '@/lib/authStorage';
+import { goToOnboarding, goToTabs } from '@/lib/authNavigation';
 import { useSupabase } from '@/lib/env';
 import { routes } from '@/lib/routes';
 
@@ -52,14 +53,13 @@ export default function WelcomeScreen() {
     loginWithRoleDemo,
     sessionKind,
     authLoading,
+    pendingAuthIntent,
     hasCompletedOnboarding,
   } = useApp();
 
-  const [authIntent, setAuthIntent] = useState<'login' | 'register' | null>(null);
-  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  
+
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,6 +69,7 @@ export default function WelcomeScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const supabaseMode = useSupabase();
+  const wantsAuthForm = pendingAuthIntent === 'login' || pendingAuthIntent === 'register';
 
   useEffect(() => {
     Animated.parallel([
@@ -77,31 +78,17 @@ export default function WelcomeScreen() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const intent = await consumeAuthIntent();
-      if (!active) return;
-      setAuthIntent(intent);
-      if (intent === 'login') setMode('login');
-      else if (intent === 'register') setMode('register');
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (authIntent === 'login' || authIntent === 'register') return;
-    if (sessionKind === 'none') return;
-
-    if (sessionKind === 'guest') {
-      router.replace(routes.tabs as any);
-    } else {
-      router.replace(hasCompletedOnboarding ? (routes.tabs as any) : (routes.onboarding as any));
-    }
-  }, [sessionKind, authLoading, authIntent, hasCompletedOnboarding]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (pendingAuthIntent === 'login') {
+        setMode('login');
+        setError(null);
+      } else if (pendingAuthIntent === 'register') {
+        setMode('register');
+        setError(null);
+      }
+    }, [pendingAuthIntent]),
+  );
 
   const handleAuthSubmit = async () => {
     setError(null);
@@ -119,7 +106,7 @@ export default function WelcomeScreen() {
       mode === 'login'
         ? await signIn(email, password)
         : await signUp(email, password, name.trim(), registerRole);
-    
+
     setSubmitting(false);
 
     if (err) {
@@ -127,13 +114,13 @@ export default function WelcomeScreen() {
       return;
     }
 
-    setAuthIntent(null);
     if (mode === 'register') {
-      router.replace(routes.onboarding as any);
+      goToOnboarding();
       return;
     }
     const onboarded = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding);
-    router.replace(onboarded === 'true' ? (routes.tabs as any) : (routes.onboarding as any));
+    if (onboarded === 'true') goToTabs();
+    else goToOnboarding();
   };
 
   const handleGuest = async () => {
@@ -149,8 +136,12 @@ export default function WelcomeScreen() {
     );
   }
 
-  if (sessionKind !== 'none' && authIntent !== 'login' && authIntent !== 'register') {
-    return <View style={styles.container} />;
+  if (sessionKind !== 'none' && !wantsAuthForm) {
+    return (
+      <Redirect
+        href={hasCompletedOnboarding ? routes.tabs : routes.onboarding}
+      />
+    );
   }
 
   return (
@@ -181,7 +172,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        {mode === 'welcome' && (
+        {mode === 'welcome' && !wantsAuthForm && (
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ gap: 10 }}>
             {!supabaseMode && (
               <>
@@ -229,15 +220,19 @@ export default function WelcomeScreen() {
           </ScrollView>
         )}
 
-        {(mode === 'login' || mode === 'register') && (
+        {(mode === 'login' || mode === 'register' || wantsAuthForm) && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formSection}>
-            <TouchableOpacity style={styles.formBack} onPress={() => { setMode('welcome'); setError(null); }}>
-              <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.formBackText}>Volver</Text>
-            </TouchableOpacity>
-            <Text style={styles.formTitle}>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</Text>
+            {!wantsAuthForm && (
+              <TouchableOpacity style={styles.formBack} onPress={() => { setMode('welcome'); setError(null); }}>
+                <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.7)" />
+                <Text style={styles.formBackText}>Volver</Text>
+              </TouchableOpacity>
+            )}
+            <Text style={styles.formTitle}>
+              {mode === 'login' || pendingAuthIntent === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+            </Text>
 
-            {mode === 'register' && (
+            {(mode === 'register' || pendingAuthIntent === 'register') && (
               <>
                 <View style={styles.inputWrap}>
                   <Feather name="user" size={18} color="rgba(255,255,255,0.5)" />
@@ -301,7 +296,9 @@ export default function WelcomeScreen() {
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitText}>{mode === 'login' ? 'Entrar' : 'Registrarse'}</Text>
+                <Text style={styles.submitText}>
+                  {mode === 'login' || pendingAuthIntent === 'login' ? 'Entrar' : 'Registrarse'}
+                </Text>
               )}
             </TouchableOpacity>
           </ScrollView>
@@ -315,7 +312,6 @@ export default function WelcomeScreen() {
   );
 }
 
-// ... styles omitidos (se quedan exactamente igual que antes) ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#071B33' },
   centered: { alignItems: 'center', justifyContent: 'center' },

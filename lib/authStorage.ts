@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { env, isSupabaseConfigured } from '@/lib/env';
 
 /** Incrementar para forzar limpieza de sesión corrupta en dispositivos de usuarios. */
-const AUTH_STORAGE_VERSION = '3';
+const AUTH_STORAGE_VERSION = '4';
 
 const KEYS = {
   version: 're_jc_auth_version',
@@ -14,6 +14,7 @@ const KEYS = {
   favorites: 're_jc_favorites',
   preferences: 're_jc_preferences',
   onboarding: 're_jc_onboarding_done',
+  guestOnboarding: 're_jc_guest_onboarding_done',
 } as const;
 
 export { KEYS as AUTH_STORAGE_KEYS };
@@ -81,6 +82,7 @@ export async function migrateAuthStorageIfNeeded(): Promise<void> {
     KEYS.favorites,
     KEYS.preferences,
     KEYS.onboarding,
+    KEYS.guestOnboarding,
   ]);
   await AsyncStorage.setItem(KEYS.version, AUTH_STORAGE_VERSION);
 }
