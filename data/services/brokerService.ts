@@ -1,4 +1,3 @@
-import { BROKERS, getBrokerById as getMockBroker } from '@/data/mock';
 import { mapDbBroker, type DbBroker } from '@/data/mappers/propertyMapper';
 import { getSupabase } from '@/lib/supabase';
 import { useSupabase } from '@/lib/env';
@@ -10,7 +9,7 @@ const BROKER_NAMES: Record<string, string> = {
 };
 
 export async function fetchBrokers() {
-  if (!useSupabase()) return BROKERS;
+  if (!useSupabase()) return [];
 
   const { data, error } = await getSupabase().from('broker_profiles').select('*').order('rating', { ascending: false });
   if (error) throw error;
@@ -18,7 +17,7 @@ export async function fetchBrokers() {
 }
 
 export async function fetchBrokerById(id: string) {
-  if (!useSupabase()) return getMockBroker(id);
+  if (!useSupabase()) return undefined;
 
   const { data, error } = await getSupabase().from('broker_profiles').select('*').eq('id', id).maybeSingle();
   if (error) throw error;

@@ -1,5 +1,4 @@
 import type { User, UserRole } from '@/data/types';
-import { getUserByRole } from '@/data/mockUsers';
 import { clearSupabaseAuthStorage } from '@/lib/authStorage';
 import { useSupabase } from '@/lib/env';
 import { getSupabase } from '@/lib/supabase';
@@ -12,6 +11,20 @@ type AuthUser = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function withTimeout<T>(promise: Promise<T>, ms = 2500): Promise<T | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 function mapRow(data: Record<string, unknown>): User {
   return {
@@ -44,12 +57,12 @@ export async function clearAuthSession(): Promise<void> {
   if (!useSupabase()) return;
   const supabase = getSupabase();
   try {
-    await supabase.auth.signOut({ scope: 'global' });
+    await withTimeout(supabase.auth.signOut({ scope: 'global' }));
   } catch {
     /* ignore */
   }
   try {
-    await supabase.auth.signOut({ scope: 'local' });
+    await withTimeout(supabase.auth.signOut({ scope: 'local' }));
   } catch {
     /* ignore */
   }
@@ -69,7 +82,7 @@ export async function getUserProfile(authUser: AuthUser, retries = 5): Promise<U
   return null;
 }
 
-/** Inserta perfil en `public.users` — solo durante registro. */
+/** Inserta perfil en `public.users` solo durante registro. */
 export async function createUserProfile(authUser: AuthUser): Promise<User | null> {
   if (!useSupabase()) return null;
 
@@ -110,10 +123,9 @@ export async function signUpWithEmail(
   role: UserRole,
 ): Promise<{ user: User | null; error: string | null }> {
   if (!useSupabase()) {
-    const mock = getUserByRole(role) ?? getUserByRole('comprador')!;
     return {
-      user: { ...mock, full_name: fullName, email, role },
-      error: null,
+      user: null,
+      error: 'Crear cuenta requiere Supabase configurado.',
     };
   }
 
@@ -169,8 +181,10 @@ export async function signInWithEmail(
   password: string,
 ): Promise<{ user: User | null; error: string | null }> {
   if (!useSupabase()) {
-    const mock = getUserByRole('comprador')!;
-    return { user: { ...mock, email }, error: null };
+    return {
+      user: null,
+      error: 'El inicio de sesión requiere Supabase configurado.',
+    };
   }
 
   const { data, error } = await getSupabase().auth.signInWithPassword({
@@ -197,17 +211,3 @@ export async function signOut(): Promise<void> {
   await clearAuthSession();
 }
 
-export async function restoreSession(): Promise<User | null> {
-  if (!useSupabase()) return null;
-
-  const { data } = await getSupabase().auth.getSession();
-  if (!data.session?.user) return null;
-
-  const profile = await ensureUserProfile(data.session.user, { createIfMissing: false });
-  if (!profile) {
-    await clearAuthSession();
-    return null;
-  }
-
-  return profile;
-}

@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { useColors } from '@/hooks/useColors';
-import { Broker } from '@/data/mock';
+import { Broker } from '@/data/catalog';
 
 interface BrokerCardProps {
   broker: Broker;

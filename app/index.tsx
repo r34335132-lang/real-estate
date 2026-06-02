@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,17 +12,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Redirect, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import Images from '@/constants/images';
 import { UserRole } from '@/data/types';
-import { AUTH_STORAGE_KEYS } from '@/lib/authStorage';
-import { goToOnboarding, goToTabs } from '@/lib/authNavigation';
+import { goToOnboarding } from '@/lib/authNavigation';
 import { useSupabase } from '@/lib/env';
-import { routes } from '@/lib/routes';
 
 interface RoleOption {
   role: UserRole;
@@ -39,22 +35,13 @@ const REGISTER_ROLES: RoleOption[] = [
   { role: 'abogado', label: 'Abogado', description: 'Validación y contratos', icon: 'shield', color: '#22C55E' },
 ];
 
-const DEMO_ROLES: RoleOption[] = [
-  ...REGISTER_ROLES,
-  { role: 'admin', label: 'Admin', description: 'Panel de administración', icon: 'settings', color: '#A78BFA' },
-];
-
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const {
     signIn,
     signUp,
     loginAsGuest,
-    loginWithRoleDemo,
-    sessionKind,
     authLoading,
-    pendingAuthIntent,
-    hasCompletedOnboarding,
   } = useApp();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -67,9 +54,9 @@ export default function WelcomeScreen() {
   const [registerRole, setRegisterRole] = useState<UserRole>('comprador');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   const supabaseMode = useSupabase();
-  const wantsAuthForm = pendingAuthIntent === 'login' || pendingAuthIntent === 'register';
 
   useEffect(() => {
     Animated.parallel([
@@ -77,18 +64,6 @@ export default function WelcomeScreen() {
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
   }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (pendingAuthIntent === 'login') {
-        setMode('login');
-        setError(null);
-      } else if (pendingAuthIntent === 'register') {
-        setMode('register');
-        setError(null);
-      }
-    }, [pendingAuthIntent]),
-  );
 
   const handleAuthSubmit = async () => {
     setError(null);
@@ -118,14 +93,23 @@ export default function WelcomeScreen() {
       goToOnboarding();
       return;
     }
-    const onboarded = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding);
-    if (onboarded === 'true') goToTabs();
-    else goToOnboarding();
+    goToOnboarding();
   };
 
   const handleGuest = async () => {
+    if (guestSubmitting) return;
     setError(null);
-    await loginAsGuest();
+    setGuestSubmitting(true);
+    try {
+      const err = await loginAsGuest();
+      if (err) {
+        setError(err);
+        return;
+      }
+      goToOnboarding();
+    } finally {
+      setGuestSubmitting(false);
+    }
   };
 
   if (authLoading) {
@@ -133,14 +117,6 @@ export default function WelcomeScreen() {
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color="#0F6BFF" />
       </View>
-    );
-  }
-
-  if (sessionKind !== 'none' && !wantsAuthForm) {
-    return (
-      <Redirect
-        href={hasCompletedOnboarding ? routes.tabs : routes.onboarding}
-      />
     );
   }
 
@@ -168,38 +144,25 @@ export default function WelcomeScreen() {
           <Text style={styles.logoTitle}>REAL ESTATE JC</Text>
           <View style={styles.goldLine} />
           <Text style={styles.tagline}>
-            {supabaseMode ? 'Conectado a tu base de datos' : 'Modo demo local'}
+            {supabaseMode ? 'Conectado a tu base de datos' : 'Configura Supabase para iniciar sesión'}
           </Text>
         </View>
 
-        {mode === 'welcome' && !wantsAuthForm && (
+        {mode === 'welcome' && (
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ gap: 10 }}>
-            {!supabaseMode && (
-              <>
-                <Text style={styles.rolesLabel}>Acceso rápido (demo):</Text>
-                {DEMO_ROLES.map((item) => (
-                  <TouchableOpacity
-                    key={item.role}
-                    style={styles.roleCard}
-                    onPress={() => loginWithRoleDemo(item.role)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.roleIcon, { backgroundColor: `${item.color}22` }]}>
-                      <Feather name={item.icon} size={20} color={item.color} />
-                    </View>
-                    <View style={styles.roleInfo}>
-                      <Text style={styles.roleLabel}>{item.label}</Text>
-                    </View>
-                    <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.35)" />
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-
-            <TouchableOpacity style={styles.guestCard} onPress={handleGuest} activeOpacity={0.9}>
+            <TouchableOpacity
+              style={[styles.guestCard, guestSubmitting && { opacity: 0.7 }]}
+              onPress={handleGuest}
+              activeOpacity={0.9}
+              disabled={guestSubmitting}
+            >
               <View style={styles.guestInner}>
                 <View style={styles.guestIconWrap}>
-                  <Feather name="compass" size={22} color="#C8A96B" />
+                  {guestSubmitting ? (
+                    <ActivityIndicator color="#C8A96B" />
+                  ) : (
+                    <Feather name="compass" size={22} color="#C8A96B" />
+                  )}
                 </View>
                 <View style={styles.guestTextWrap}>
                   <Text style={styles.guestTitle}>Explorar como invitado</Text>
@@ -220,19 +183,17 @@ export default function WelcomeScreen() {
           </ScrollView>
         )}
 
-        {(mode === 'login' || mode === 'register' || wantsAuthForm) && (
+        {(mode === 'login' || mode === 'register') && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formSection}>
-            {!wantsAuthForm && (
-              <TouchableOpacity style={styles.formBack} onPress={() => { setMode('welcome'); setError(null); }}>
-                <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.formBackText}>Volver</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.formBack} onPress={() => { setMode('welcome'); setError(null); }}>
+              <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.formBackText}>Volver</Text>
+            </TouchableOpacity>
             <Text style={styles.formTitle}>
-              {mode === 'login' || pendingAuthIntent === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+              {mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
             </Text>
 
-            {(mode === 'register' || pendingAuthIntent === 'register') && (
+            {mode === 'register' && (
               <>
                 <View style={styles.inputWrap}>
                   <Feather name="user" size={18} color="rgba(255,255,255,0.5)" />
@@ -297,7 +258,7 @@ export default function WelcomeScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitText}>
-                  {mode === 'login' || pendingAuthIntent === 'login' ? 'Entrar' : 'Registrarse'}
+                  {mode === 'login' ? 'Entrar' : 'Registrarse'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -324,11 +285,6 @@ const styles = StyleSheet.create({
   logoTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 3, marginBottom: 8 },
   goldLine: { width: 40, height: 3, backgroundColor: '#C8A96B', borderRadius: 2, marginBottom: 8 },
   tagline: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.55)' },
-  rolesLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 1 },
-  roleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, gap: 12 },
-  roleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  roleInfo: { flex: 1 },
-  roleLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#fff' },
   guestCard: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(200,169,107,0.35)', backgroundColor: 'rgba(200,169,107,0.1)', marginTop: 8 },
   guestInner: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   guestIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(200,169,107,0.2)', alignItems: 'center', justifyContent: 'center' },

@@ -13,6 +13,13 @@ interface LegalOption {
   badge?: string;
 }
 
+interface ScopeModule {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  description: string;
+  items: string[];
+}
+
 const OPTIONS: LegalOption[] = [
   {
     icon: 'file-text',
@@ -58,6 +65,33 @@ const TRUST_POINTS = [
   'Red de abogados certificados AMPI',
   'Revisión en menos de 48 horas',
   'Contratos con validez en toda la República',
+];
+
+const SCOPE_MODULES: ScopeModule[] = [
+  {
+    icon: 'activity',
+    title: 'Procesos',
+    description: 'Seguimiento de compra, renta, validación y firma desde una misma línea de avance.',
+    items: ['Compra', 'Renta', 'Validación', 'Firma'],
+  },
+  {
+    icon: 'upload-cloud',
+    title: 'Documentación',
+    description: 'Subida, revisión y control de documentos por propiedad, cliente y operación.',
+    items: ['Subida', 'Revisión', 'Checklist'],
+  },
+  {
+    icon: 'clock',
+    title: 'Historial',
+    description: 'Registro de propiedades, contratos y procesos para auditoría y continuidad operativa.',
+    items: ['Propiedades', 'Contratos', 'Procesos'],
+  },
+  {
+    icon: 'briefcase',
+    title: 'Legal',
+    description: 'Contratos digitales, validación de propiedades y herramientas jurídicas para abogados.',
+    items: ['Contratos digitales', 'Validación', 'Herramientas jurídicas'],
+  },
 ];
 
 export default function LegalScreen() {
@@ -133,6 +167,28 @@ export default function LegalScreen() {
                 <Feather name="arrow-right" size={13} color={opt.color} />
               </View>
             </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Módulos planeados</Text>
+        <View style={styles.scopeGrid}>
+          {SCOPE_MODULES.map((module) => (
+            <View key={module.title} style={[styles.scopeCard, { backgroundColor: colors.card }]}>
+              <View style={styles.scopeHeader}>
+                <View style={styles.scopeIcon}>
+                  <Feather name={module.icon} size={18} color="#C8A96B" />
+                </View>
+                <Text style={[styles.scopeTitle, { color: colors.foreground }]}>{module.title}</Text>
+              </View>
+              <Text style={[styles.scopeDesc, { color: colors.mutedForeground }]}>{module.description}</Text>
+              <View style={styles.scopeItems}>
+                {module.items.map((item) => (
+                  <View key={item} style={styles.scopePill}>
+                    <Text style={styles.scopePillText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           ))}
         </View>
 
@@ -226,6 +282,60 @@ const styles = StyleSheet.create({
   },
   optionsGrid: {
     gap: 12,
+  },
+  scopeGrid: {
+    gap: 12,
+  },
+  scopeCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(200,169,107,0.18)',
+    shadowColor: '#071B33',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  scopeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  scopeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(200,169,107,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  scopeDesc: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  scopeItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  scopePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9,
+    backgroundColor: 'rgba(7,27,51,0.06)',
+  },
+  scopePillText: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: '#071B33',
   },
   optionCard: {
     borderRadius: 18,

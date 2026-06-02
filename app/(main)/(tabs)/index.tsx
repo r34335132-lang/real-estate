@@ -17,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
-import { CATEGORIES } from '@/data/mock';
+import { CATEGORIES } from '@/data/catalog';
 import { fetchBrokers } from '@/data/services/brokerService';
 import { fetchFeatured, fetchRecommended, fetchVerifiedLegal } from '@/data/services/propertyService';
 import { PropertyCard } from '@/components/PropertyCard';
@@ -102,13 +102,17 @@ export default function HomeScreen() {
                 <Text style={styles.guestBadgeText}>Invitado</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.avatarBtn} onPress={() => router.push('/(tabs)/profile')}>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => router.push('/(main)/(tabs)/profile')}>
               <Text style={styles.avatarText}>{displayName[0].toUpperCase()}</Text>
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.searchWrapper}>
-          <SearchBar value={search} onChangeText={setSearch} onFilterPress={() => router.push('/(tabs)/categories')} />
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            onFilterPress={() => router.push('/(main)/(tabs)/categories')}
+          />
         </View>
       </View>
 
@@ -183,7 +187,7 @@ export default function HomeScreen() {
           <SectionHeader
             title="Propiedades destacadas"
             subtitle={`${featured.length} exclusividades`}
-            onSeeAll={() => router.push('/(tabs)/categories')}
+            onSeeAll={() => router.push('/(main)/(tabs)/categories')}
           />
           <FlatList
             data={featured}

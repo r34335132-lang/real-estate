@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
-import { formatPrice } from '@/data/mock';
+import { formatPrice } from '@/data/catalog';
 import { fetchBrokerById } from '@/data/services/brokerService';
 
 const { width, height } = Dimensions.get('window');
@@ -197,7 +197,7 @@ export default function PropertyDetailScreen() {
           <TouchableOpacity
             style={styles.legalBtn}
             activeOpacity={0.85}
-            onPress={() => router.push('/(tabs)/legal')}
+            onPress={() => router.push('/(main)/(tabs)/legal')}
           >
             <Text style={styles.legalBtnText}>Ver Documentación Completa</Text>
             <Feather name="arrow-right" size={14} color="#22C55E" />

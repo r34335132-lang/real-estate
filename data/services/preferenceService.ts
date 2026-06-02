@@ -20,13 +20,7 @@ export async function savePreferences(
   prefs: Omit<UserPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>,
 ): Promise<UserPreferences> {
   if (!useSupabase()) {
-    return {
-      id: 'local',
-      user_id: userId,
-      ...prefs,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    throw new Error('Guardar preferencias requiere Supabase configurado.');
   }
 
   const { data, error } = await getSupabase()

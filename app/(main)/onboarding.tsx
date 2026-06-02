@@ -18,8 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
-import { BUDGET_OPTIONS } from '@/data/mockPreferences';
-import { CATEGORIES } from '@/data/mock';
+import { BUDGET_OPTIONS, CATEGORIES } from '@/data/catalog';
 import { BudgetRange, PropertyCategory } from '@/data/types';
 
 const { width } = Dimensions.get('window');

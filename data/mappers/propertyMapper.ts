@@ -1,6 +1,6 @@
 import Images from '@/constants/images';
 
-import type { Property } from '@/data/mock';
+import type { Property } from '@/data/catalog';
 import type { ImageAsset, LegalStatus, PropertyCategory } from '@/data/types';
 
 const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {

@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { FilterSheet } from '@/components/FilterSheet';
 import { PropertyCard } from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
-import { CATEGORIES, PropertyCategory } from '@/data/mock';
+import { CATEGORIES, type PropertyCategory } from '@/data/catalog';
 import { usePropertyFilters } from '@/hooks/usePropertyFilters';
 import { useColors } from '@/hooks/useColors';
 

@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { FilterSheet } from '@/components/FilterSheet';
 import { PropertyCard } from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
-import { getCategoryMeta } from '@/data/mock';
+import { getCategoryMeta } from '@/data/catalog';
 import { fetchPropertiesByCategory } from '@/data/services/propertyService';
 import { PropertyCategory } from '@/data/types';
 import { usePropertyFilters } from '@/hooks/usePropertyFilters';

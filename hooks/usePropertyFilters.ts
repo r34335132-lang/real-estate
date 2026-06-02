@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { LegalStatus, OperationType, Property, PropertyCategory } from '@/data/types';
-import { PROPERTIES } from '@/data/mock';
+import { LegalStatus, OperationType, PropertyCategory } from '@/data/types';
+import type { Property } from '@/data/catalog';
 
 export interface PropertyFilters {
   category?: PropertyCategory;
@@ -28,9 +28,7 @@ export const DEFAULT_FILTERS: PropertyFilters = {
   bathrooms: null,
 };
 
-type LegacyProperty = (typeof PROPERTIES)[number];
-
-export function usePropertyFilters(initialCategory?: PropertyCategory, source?: LegacyProperty[]) {
+export function usePropertyFilters(initialCategory?: PropertyCategory, source?: Property[]) {
   const [filters, setFilters] = useState<PropertyFilters>({
     ...DEFAULT_FILTERS,
     category: initialCategory,
@@ -87,8 +85,8 @@ export function usePropertyFilters(initialCategory?: PropertyCategory, source?: 
   };
 
   const filtered = useMemo(() => {
-    const base = source ?? PROPERTIES;
-    let list: LegacyProperty[] = filters.category
+    const base = source ?? [];
+    let list: Property[] = filters.category
       ? base.filter((p) => p.category === filters.category)
       : [...base];
 

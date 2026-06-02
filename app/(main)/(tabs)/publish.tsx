@@ -17,7 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
-import { PropertyCategory } from '@/data/mock';
+import type { PropertyCategory } from '@/data/catalog';
 import { createProperty } from '@/data/services/propertyService';
 import { useSupabase } from '@/lib/env';
 import { pickAndUploadImage } from '@/lib/storage';

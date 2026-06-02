@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { useColors } from '@/hooks/useColors';
-import { Property, formatPrice, getBrokerById } from '@/data/mock';
+import { Property, formatPrice } from '@/data/catalog';
 import { StatusBadge } from '@/components/StatusBadge';
 
 interface PropertyCardProps {
@@ -15,7 +15,6 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property, onPress, onFavorite, isFavorite }: PropertyCardProps) {
   const colors = useColors();
-  const broker = getBrokerById(property.brokerId);
 
   return (
     <TouchableOpacity
@@ -73,20 +72,14 @@ export function PropertyCard({ property, onPress, onFavorite, isFavorite }: Prop
         </View>
 
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
-          {broker && (
-            <View style={styles.brokerRow}>
-              <Image source={broker.image} style={styles.brokerAvatar} />
-              <View>
-                <Text style={[styles.brokerName, { color: colors.foreground }]}>{broker.name}</Text>
-                {property.verified && (
-                  <View style={styles.verifiedRow}>
-                    <Feather name="shield" size={9} color="#22C55E" />
-                    <Text style={styles.verifiedText}>Verificado</Text>
-                  </View>
-                )}
+          <View style={styles.brokerRow}>
+            {property.verified && (
+              <View style={styles.verifiedRow}>
+                <Feather name="shield" size={9} color="#22C55E" />
+                <Text style={styles.verifiedText}>Verificado</Text>
               </View>
-            </View>
-          )}
+            )}
+          </View>
           <View style={[styles.detailBtn, { backgroundColor: '#0F6BFF' }]}>
             <Text style={styles.detailText}>Ver</Text>
             <Feather name="arrow-right" size={12} color="#fff" />
@@ -203,15 +196,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flex: 1,
-  },
-  brokerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  brokerName: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
   },
   verifiedRow: {
     flexDirection: 'row',

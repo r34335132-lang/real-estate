@@ -3,9 +3,6 @@ import { Platform } from 'react-native';
 
 import { env, isSupabaseConfigured } from '@/lib/env';
 
-/** Incrementar para forzar limpieza de sesión corrupta en dispositivos de usuarios. */
-const AUTH_STORAGE_VERSION = '4';
-
 const KEYS = {
   version: 're_jc_auth_version',
   authIntent: 're_jc_auth_intent',
@@ -47,35 +44,17 @@ export async function clearSupabaseAuthStorage(): Promise<void> {
   }
 }
 
-export async function setAuthIntent(intent: AuthIntent): Promise<void> {
-  await AsyncStorage.setItem(KEYS.authIntent, intent);
-}
-
-export async function peekAuthIntent(): Promise<AuthIntent | null> {
-  const v = await AsyncStorage.getItem(KEYS.authIntent);
-  if (v === 'login' || v === 'register') return v;
-  return null;
-}
-
-export async function consumeAuthIntent(): Promise<AuthIntent | null> {
-  const v = await peekAuthIntent();
-  if (v) await AsyncStorage.removeItem(KEYS.authIntent);
-  return v;
-}
-
 export async function clearAuthIntent(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.authIntent);
 }
 
 /**
- * Una sola vez por versión: limpia sesiones viejas/corruptas en el dispositivo.
+ * Limpia sesiones viejas/corruptas en el dispositivo sin guardar marcadores locales.
  */
 export async function migrateAuthStorageIfNeeded(): Promise<void> {
-  const current = await AsyncStorage.getItem(KEYS.version);
-  if (current === AUTH_STORAGE_VERSION) return;
-
   await clearSupabaseAuthStorage();
   await AsyncStorage.multiRemove([
+    KEYS.version,
     KEYS.guest,
     KEYS.skipRestore,
     KEYS.authIntent,
@@ -83,6 +62,7 @@ export async function migrateAuthStorageIfNeeded(): Promise<void> {
     KEYS.preferences,
     KEYS.onboarding,
     KEYS.guestOnboarding,
+    're_jc_registered_guest_email',
+    're_jc_registered_guest_password',
   ]);
-  await AsyncStorage.setItem(KEYS.version, AUTH_STORAGE_VERSION);
 }

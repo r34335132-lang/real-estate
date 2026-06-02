@@ -3,7 +3,7 @@ import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { Feather } from '@expo/vector-icons';
 
 import { useColors } from '@/hooks/useColors';
-import { Property, formatPrice, getBrokerById } from '@/data/mock';
+import { Property, formatPrice } from '@/data/catalog';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.78;
@@ -15,7 +15,6 @@ interface FeaturedPropertyCardProps {
 
 export function FeaturedPropertyCard({ property, onPress }: FeaturedPropertyCardProps) {
   const colors = useColors();
-  const broker = getBrokerById(property.brokerId);
 
   return (
     <TouchableOpacity
@@ -52,18 +51,6 @@ export function FeaturedPropertyCard({ property, onPress }: FeaturedPropertyCard
               <Text style={styles.priceLabel}>Precio</Text>
               <Text style={styles.price}>{formatPrice(property.price)} MXN</Text>
             </View>
-            {broker && (
-              <View style={styles.brokerRow}>
-                <Image source={broker.image} style={styles.brokerAvatar} />
-                <View style={styles.brokerInfo}>
-                  <Text style={styles.brokerName}>{broker.name.split(' ')[0]}</Text>
-                  <View style={styles.ratingRow}>
-                    <Feather name="star" size={9} color="#C8A96B" />
-                    <Text style={styles.rating}>{broker.rating}</Text>
-                  </View>
-                </View>
-              </View>
-            )}
           </View>
         </View>
       </View>
@@ -173,39 +160,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: '#fff',
     letterSpacing: -0.5,
-  },
-  brokerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-    padding: 6,
-    paddingRight: 10,
-  },
-  brokerAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  brokerInfo: {
-    gap: 2,
-  },
-  brokerName: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#fff',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  rating: {
-    fontSize: 11,
-    fontFamily: 'Inter_500Medium',
-    color: '#C8A96B',
   },
 });

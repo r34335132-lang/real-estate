@@ -6,16 +6,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
-import {
-  BROKERS,
-  MOCK_APPOINTMENTS,
-  MOCK_LEGAL_REQUESTS,
-  MOCK_USERS,
-  PROPERTIES,
-} from '@/data/mock';
 import Images from '@/constants/images';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
+import type { AuthIntent } from '@/lib/authStorage';
+import type { Appointment, LegalRequest } from '@/data/types';
+import type { Property } from '@/data/catalog';
+
+const EMPTY_APPOINTMENTS: Appointment[] = [];
+const EMPTY_LEGAL_REQUESTS: LegalRequest[] = [];
+const EMPTY_PROPERTIES: Property[] = [];
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -23,6 +23,7 @@ export default function ProfileScreen() {
   const { role, user, isGuest, logout, exitGuestToAuth, favorites, preferences } = useApp();
   
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [guestAuthLoading, setGuestAuthLoading] = useState<AuthIntent | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any)?.avatar_url || (user as any)?.user_metadata?.avatar_url || null);
 
   useEffect(() => {
@@ -34,10 +35,18 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  const broker = BROKERS[0];
-  const myProperties = PROPERTIES.filter((p) => p.broker_id === 'b1').slice(0, 3);
-  const favoriteProps = PROPERTIES.filter((p) => favorites.includes(p.id));
-  const buyerAppointments = MOCK_APPOINTMENTS.filter((a) => a.user_id === 'u-buyer');
+  const broker = {
+    title: 'Broker Inmobiliario',
+    company: 'JC Real Estate Group',
+    image: Images.broker1,
+    activeListings: 0,
+    closedSales: 0,
+    rating: 0,
+  };
+  const myProperties = EMPTY_PROPERTIES.filter((p) => p.broker_id === user?.id).slice(0, 3);
+  const favoriteProps = EMPTY_PROPERTIES.filter((p) => favorites.includes(p.id));
+  const buyerAppointments = EMPTY_APPOINTMENTS.filter((a) => a.user_id === user?.id);
+  const legalRequests = EMPTY_LEGAL_REQUESTS;
 
   const displayName = user?.full_name || (user as any)?.user_metadata?.full_name || 'Usuario';
   const roleLabels: Record<string, string> = {
@@ -49,15 +58,32 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    await logout();
+    router.replace('/');
+    void logout();
   };
 
   const handleGuestRegister = async () => {
-    await exitGuestToAuth('register');
+    if (guestAuthLoading) return;
+
+    try {
+      setGuestAuthLoading('register');
+      router.replace('/');
+      void exitGuestToAuth('register');
+    } finally {
+      setGuestAuthLoading(null);
+    }
   };
 
   const handleGuestLogin = async () => {
-    await exitGuestToAuth('login');
+    if (guestAuthLoading) return;
+
+    try {
+      setGuestAuthLoading('login');
+      router.replace('/');
+      void exitGuestToAuth('login');
+    } finally {
+      setGuestAuthLoading(null);
+    }
   };
 
   const handleUpdateAvatar = async () => {
@@ -116,11 +142,25 @@ export default function ProfileScreen() {
             <Text style={styles.guestMsg}>
               Explora propiedades libremente. Crea una cuenta para guardar favoritos, contactar brokers y agendar visitas.
             </Text>
-            <TouchableOpacity style={styles.ctaPrimary} onPress={handleGuestRegister} activeOpacity={0.88}>
-              <Text style={styles.ctaPrimaryText}>Crear cuenta</Text>
+            <TouchableOpacity
+              style={[styles.ctaPrimary, guestAuthLoading && styles.ctaDisabled]}
+              onPress={handleGuestRegister}
+              activeOpacity={0.88}
+              disabled={!!guestAuthLoading}
+            >
+              <Text style={styles.ctaPrimaryText}>
+                {guestAuthLoading === 'register' ? 'Abriendo...' : 'Crear cuenta'}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.ctaSecondary} onPress={handleGuestLogin} activeOpacity={0.8}>
-              <Text style={styles.ctaSecondaryText}>Iniciar sesión</Text>
+            <TouchableOpacity
+              style={[styles.ctaSecondary, guestAuthLoading && styles.ctaDisabled]}
+              onPress={handleGuestLogin}
+              activeOpacity={0.8}
+              disabled={!!guestAuthLoading}
+            >
+              <Text style={styles.ctaSecondaryText}>
+                {guestAuthLoading === 'login' ? 'Abriendo...' : 'Iniciar sesión'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -191,17 +231,17 @@ export default function ProfileScreen() {
           {isAdmin && (
             <>
               <View style={styles.stat}>
-                <Text style={styles.statNum}>{MOCK_USERS.length}</Text>
+                <Text style={styles.statNum}>0</Text>
                 <Text style={styles.statLabel}>Usuarios</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.stat}>
-                <Text style={styles.statNum}>{PROPERTIES.length}</Text>
+                <Text style={styles.statNum}>0</Text>
                 <Text style={styles.statLabel}>Propiedades</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.stat}>
-                <Text style={styles.statNum}>{MOCK_LEGAL_REQUESTS.length}</Text>
+                <Text style={styles.statNum}>{legalRequests.length}</Text>
                 <Text style={styles.statLabel}>Solicitudes</Text>
               </View>
             </>
@@ -227,7 +267,7 @@ export default function ProfileScreen() {
           {isAbogado && (
             <>
               <View style={styles.stat}>
-                <Text style={styles.statNum}>{MOCK_LEGAL_REQUESTS.length}</Text>
+                <Text style={styles.statNum}>{legalRequests.length}</Text>
                 <Text style={styles.statLabel}>Casos</Text>
               </View>
               <View style={styles.statDivider} />
@@ -319,7 +359,7 @@ export default function ProfileScreen() {
         {isAdmin && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Solicitudes legales</Text>
-            {MOCK_LEGAL_REQUESTS.map((lr) => (
+            {legalRequests.map((lr) => (
               <View key={lr.id} style={[styles.adminRow, { backgroundColor: colors.card }]}>
                 <Feather name="file-text" size={18} color="#0F6BFF" />
                 <View style={{ flex: 1 }}>
@@ -383,7 +423,7 @@ export default function ProfileScreen() {
         {isAbogado && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Casos activos</Text>
-            {MOCK_LEGAL_REQUESTS.map((lr) => (
+            {legalRequests.map((lr) => (
               <View key={lr.id} style={[styles.adminRow, { backgroundColor: colors.card }]}>
                 <Feather name="shield" size={18} color="#22C55E" />
                 <View style={{ flex: 1 }}>
@@ -533,6 +573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  ctaDisabled: { opacity: 0.65 },
   ctaPrimaryText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#fff' },
   ctaSecondary: { paddingVertical: 10 },
   ctaSecondaryText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: '#C8A96B' },

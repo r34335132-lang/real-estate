@@ -5,7 +5,7 @@
 export const env = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
   supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
-  dataSource: (process.env.EXPO_PUBLIC_DATA_SOURCE ?? 'mock') as 'mock' | 'supabase',
+  dataSource: (process.env.EXPO_PUBLIC_DATA_SOURCE ?? 'supabase') as 'supabase',
 } as const;
 
 export function isSupabaseConfigured(): boolean {

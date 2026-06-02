@@ -13,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PropertyFilters } from '@/hooks/usePropertyFilters';
-import { CATEGORIES } from '@/data/mock';
+import { CATEGORIES } from '@/data/catalog';
 import { LegalStatus, OperationType, PropertyCategory } from '@/data/types';
 
 interface FilterSheetProps {

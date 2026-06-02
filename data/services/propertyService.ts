@@ -1,14 +1,5 @@
-import {
-  PROPERTIES as MOCK_PROPERTIES,
-  getFeaturedProperties,
-  getPropertiesByBroker,
-  getPropertiesByCategory,
-  getPropertyById,
-  getRecommendedProperties,
-  getVerifiedLegalProperties,
-} from '@/data/mock';
 import { mapDbProperty, type DbProperty } from '@/data/mappers/propertyMapper';
-import type { Property } from '@/data/mock';
+import type { Property } from '@/data/catalog';
 import type { PropertyCategory } from '@/data/types';
 import { getSupabase } from '@/lib/supabase';
 import { useSupabase } from '@/lib/env';
@@ -26,12 +17,12 @@ async function fetchAllFromDb(): Promise<Property[]> {
 }
 
 export async function fetchProperties(): Promise<Property[]> {
-  if (!useSupabase()) return [...MOCK_PROPERTIES];
+  if (!useSupabase()) return [];
   return fetchAllFromDb();
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | undefined> {
-  if (!useSupabase()) return getPropertyById(id);
+  if (!useSupabase()) return undefined;
 
   const { data, error } = await getSupabase().from('properties').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
@@ -39,7 +30,7 @@ export async function fetchPropertyById(id: string): Promise<Property | undefine
 }
 
 export async function fetchPropertiesByCategory(category: PropertyCategory): Promise<Property[]> {
-  if (!useSupabase()) return getPropertiesByCategory(category);
+  if (!useSupabase()) return [];
 
   const { data, error } = await getSupabase()
     .from('properties')
@@ -52,7 +43,7 @@ export async function fetchPropertiesByCategory(category: PropertyCategory): Pro
 }
 
 export async function fetchFeatured(): Promise<Property[]> {
-  if (!useSupabase()) return getFeaturedProperties();
+  if (!useSupabase()) return [];
 
   const { data, error } = await getSupabase()
     .from('properties')
@@ -70,7 +61,7 @@ export async function fetchRecommended(
   operationType?: 'venta' | 'renta',
   budgetMax?: number,
 ): Promise<Property[]> {
-  if (!useSupabase()) return getRecommendedProperties(category, operationType, budgetMax);
+  if (!useSupabase()) return [];
 
   let q = getSupabase().from('properties').select('*').eq('status', 'activa');
   if (category) q = q.eq('category', category);
@@ -83,7 +74,7 @@ export async function fetchRecommended(
 }
 
 export async function fetchVerifiedLegal(): Promise<Property[]> {
-  if (!useSupabase()) return getVerifiedLegalProperties();
+  if (!useSupabase()) return [];
 
   const { data, error } = await getSupabase()
     .from('properties')
@@ -96,7 +87,7 @@ export async function fetchVerifiedLegal(): Promise<Property[]> {
 }
 
 export async function fetchByBroker(brokerId: string): Promise<Property[]> {
-  if (!useSupabase()) return getPropertiesByBroker(brokerId);
+  if (!useSupabase()) return [];
 
   const { data, error } = await getSupabase()
     .from('properties')

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 
 
@@ -13,14 +14,21 @@ import { useApp } from '@/context/AppContext';
 export function GuestGateModal() {
 
   const { guestGate, hideGuestGate, exitGuestToAuth } = useApp();
+  const [loading, setLoading] = useState(false);
 
 
 
   const handleCreateAccount = async () => {
+    if (loading) return;
 
-    hideGuestGate();
-
-    await exitGuestToAuth('register');
+    try {
+      setLoading(true);
+      hideGuestGate();
+      router.replace('/');
+      void exitGuestToAuth('register');
+    } finally {
+      setLoading(false);
+    }
 
   };
 
@@ -44,7 +52,12 @@ export function GuestGateModal() {
 
           <Text style={styles.message}>{guestGate.message}</Text>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateAccount} activeOpacity={0.88}>
+          <TouchableOpacity
+            style={[styles.primaryBtn, loading && styles.disabledBtn]}
+            onPress={handleCreateAccount}
+            activeOpacity={0.88}
+            disabled={loading}
+          >
 
             <Text style={styles.primaryText}>{guestGate.actionLabel ?? 'Crear cuenta'}</Text>
 
@@ -166,6 +179,9 @@ const styles = StyleSheet.create({
 
     marginBottom: 10,
 
+  },
+  disabledBtn: {
+    opacity: 0.65,
   },
 
   primaryText: {

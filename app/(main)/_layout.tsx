@@ -1,13 +1,11 @@
-import { Redirect, Stack, usePathname } from 'expo-router';
+import { Stack } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
-import { routes } from '@/lib/routes';
 
 export default function MainLayout() {
-  const { sessionKind, authLoading, hasCompletedOnboarding } = useApp();
-  const pathname = usePathname();
+  const { authLoading } = useApp();
 
   if (authLoading) {
     return (
@@ -15,17 +13,6 @@ export default function MainLayout() {
         <ActivityIndicator size="large" color="#0F6BFF" />
       </View>
     );
-  }
-
-  if (sessionKind === 'none') {
-    return <Redirect href={routes.welcome} />;
-  }
-
-  const onOnboarding = pathname.startsWith('/onboarding');
-  const onCategory = pathname.startsWith('/category');
-
-  if (sessionKind === 'guest' && !hasCompletedOnboarding && !onOnboarding && !onCategory) {
-    return <Redirect href={routes.onboarding} />;
   }
 
   return (

@@ -14,7 +14,7 @@ export async function fetchFavoriteIds(userId: string): Promise<string[]> {
 }
 
 export async function toggleFavoriteDb(userId: string, propertyId: string): Promise<boolean> {
-  if (!useSupabase()) return true;
+  if (!useSupabase()) return false;
 
   const { data: existing } = await getSupabase()
     .from('favorites')
