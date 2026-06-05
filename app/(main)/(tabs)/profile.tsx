@@ -45,8 +45,7 @@ export default function ProfileScreen() {
   const roleLabels: Record<string, string> = {
     admin: 'Administrador',
     broker: broker.title,
-    abogado: 'Abogado Inmobiliario',
-    comprador: 'Comprador Premium',
+    buyer: 'Comprador Premium',
   };
 
   const handleLogout = async () => {
@@ -83,8 +82,7 @@ export default function ProfileScreen() {
 
   const isAdmin = role === 'admin';
   const isBroker = role === 'broker';
-  const isAbogado = role === 'abogado';
-  const isComprador = role === 'comprador';
+  const isBuyer = role === 'buyer';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -113,7 +111,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <Text style={styles.name}>{displayName}</Text>
           <View style={styles.rolePill}>
-            <Feather name={isAdmin ? 'settings' : isBroker ? 'briefcase' : isAbogado ? 'shield' : 'user'} size={12} color="#C8A96B" />
+            <Feather name={isAdmin ? 'settings' : isBroker ? 'briefcase' : 'user'} size={12} color="#C8A96B" />
             <Text style={styles.roleText}>{roleLabels[role]}</Text>
           </View>
           {isBroker && <Text style={styles.company}>{broker.company}</Text>}
@@ -138,16 +136,7 @@ export default function ProfileScreen() {
               <Stat value={broker.rating} label="Rating" />
             </>
           )}
-          {isAbogado && (
-            <>
-              <Stat value={legalRequests.length} label="Casos" />
-              <Divider />
-              <Stat value="18" label="Contratos" />
-              <Divider />
-              <Stat value="11" label="Validaciones" />
-            </>
-          )}
-          {isComprador && (
+          {isBuyer && (
             <>
               <Stat value={favoriteProps.length} label="Favoritos" />
               <Divider />
@@ -176,23 +165,16 @@ export default function ProfileScreen() {
               ]
             : isBroker
               ? [
-                  { icon: 'plus-circle' as const, label: 'Publicar', color: '#0F6BFF', route: '/(tabs)/publish' },
+                  { icon: 'plus-circle' as const, label: 'Publicar', color: '#0F6BFF', route: '/(main)/(tabs)/publish' },
                   { icon: 'bar-chart-2' as const, label: 'Leads', color: '#22C55E' },
                   { icon: 'calendar' as const, label: 'Citas', color: '#C8A96B' },
                   { icon: 'edit-2' as const, label: 'Perfil', color: '#A78BFA' },
                 ]
-              : isAbogado
-                ? [
-                    { icon: 'file-text' as const, label: 'Contratos', color: '#0F6BFF', route: '/(tabs)/legal' },
-                    { icon: 'check-circle' as const, label: 'Validar', color: '#22C55E' },
-                    { icon: 'folder' as const, label: 'Documentos', color: '#C8A96B' },
-                    { icon: 'activity' as const, label: 'Casos', color: '#A78BFA' },
-                  ]
-                : [
+              : [
                     { icon: 'heart' as const, label: 'Favoritos', color: '#EF4444' },
                     { icon: 'calendar' as const, label: 'Citas', color: '#0F6BFF' },
                     { icon: 'sliders' as const, label: 'Preferencias', color: '#22C55E', route: '/onboarding' },
-                    { icon: 'star' as const, label: 'Recomendados', color: '#C8A96B', route: '/(tabs)/' },
+                    { icon: 'star' as const, label: 'Recomendados', color: '#C8A96B', route: '/(main)/(tabs)' },
                   ]
           ).map((action, i) => (
             <TouchableOpacity

@@ -4,12 +4,24 @@ import type { ImageSourcePropType } from 'react-native';
 
 export type ImageAsset = ImageSourcePropType;
 
-export type UserRole = 'admin' | 'broker' | 'abogado' | 'comprador';
+export type UserRole = 'admin' | 'broker' | 'buyer';
 
 export type PropertyCategory = 'terreno' | 'casa' | 'edificio' | 'hotel' | 'playa' | 'cenote';
 export type OperationType = 'compra' | 'venta' | 'renta' | 'permuta' | 'asesoria';
 export type LegalStatus = 'pendiente' | 'en_revision' | 'verificada' | 'rechazada';
 export type PropertyListingStatus = 'activa' | 'vendida' | 'pausada';
+export type BrokerVerificationStatus = 'pending' | 'approved' | 'rejected';
+export type PublicationStatus = 'draft' | 'pending_review' | 'published' | 'rejected';
+export type PropertyDocumentStatus = 'pending' | 'approved' | 'rejected';
+export type PropertyDocumentType =
+  | 'escritura_publica'
+  | 'libre_gravamen'
+  | 'cedula_catastral'
+  | 'planos'
+  | 'predial'
+  | 'servicios'
+  | 'identificacion_propietario'
+  | 'autorizacion_propietario';
 
 export type BudgetRange =
   | 'under_1m'
@@ -32,25 +44,16 @@ export interface User {
 export interface BrokerProfile {
   id: string;
   user_id: string;
-  company_name: string;
-  professional_title: string;
-  bio: string;
-  city: string;
-  state: string;
+  full_name: string;
   phone: string;
-  whatsapp: string;
   email: string;
-  years_experience: number;
-  specialties: string[];
-  certifications: string[];
-  rating: number;
-  total_sales: number;
-  active_properties: number;
-  verified: boolean;
-  image: ImageAsset;
-  reviews?: number;
-  instagram?: string;
-  linkedin?: string;
+  company_name: string;
+  ampi_number: string;
+  sedetus_number: string;
+  license_type: string;
+  id_document_url: string;
+  verification_status: BrokerVerificationStatus;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -77,6 +80,10 @@ export interface Property {
   image: ImageAsset;
   legal_status: LegalStatus;
   status: PropertyListingStatus;
+  publication_status: PublicationStatus;
+  rejection_reason: string | null;
+  legal_disclaimer_accepted: boolean;
+  documents_completed: boolean;
   featured: boolean;
   verified: boolean;
   has_public_deed?: boolean;
@@ -89,6 +96,16 @@ export interface Property {
   updated_at: string;
   /** @deprecated use operation_type */
   status_legacy?: OperationType;
+}
+
+export interface PropertyDocument {
+  id: string;
+  property_id: string;
+  document_type: PropertyDocumentType;
+  file_url: string;
+  status: PropertyDocumentStatus;
+  rejection_reason: string | null;
+  created_at: string;
 }
 
 export interface UserPreferences {

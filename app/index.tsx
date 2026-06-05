@@ -30,9 +30,8 @@ interface RoleOption {
 }
 
 const REGISTER_ROLES: RoleOption[] = [
-  { role: 'comprador', label: 'Comprador', description: 'Buscar y guardar propiedades', icon: 'search', color: '#0F6BFF' },
+  { role: 'buyer', label: 'Comprador', description: 'Buscar y guardar propiedades', icon: 'search', color: '#0F6BFF' },
   { role: 'broker', label: 'Broker', description: 'Publicar y gestionar inmuebles', icon: 'briefcase', color: '#C8A96B' },
-  { role: 'abogado', label: 'Abogado', description: 'Validación y contratos', icon: 'shield', color: '#22C55E' },
 ];
 
 export default function WelcomeScreen() {
@@ -50,7 +49,7 @@ export default function WelcomeScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [registerRole, setRegisterRole] = useState<UserRole>('comprador');
+  const [registerRole, setRegisterRole] = useState<UserRole>('buyer');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 

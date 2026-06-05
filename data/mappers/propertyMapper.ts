@@ -1,7 +1,7 @@
 import Images from '@/constants/images';
 
 import type { Property } from '@/data/catalog';
-import type { ImageAsset, LegalStatus, OperationType, PropertyCategory } from '@/data/types';
+import type { ImageAsset, LegalStatus, OperationType, PropertyCategory, PublicationStatus } from '@/data/types';
 
 const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
   terreno: Images.terreno,
@@ -40,6 +40,10 @@ export interface DbProperty {
   images: string[] | null;
   legal_status: LegalStatus;
   status: string;
+  publication_status?: PublicationStatus | null;
+  rejection_reason?: string | null;
+  legal_disclaimer_accepted?: boolean | null;
+  documents_completed?: boolean | null;
   featured: boolean | null;
   has_public_deed?: boolean | null;
   has_no_lien_certificate?: boolean | null;
@@ -90,6 +94,10 @@ export function mapDbProperty(row: DbProperty): Property {
     image: primary,
     legal_status: row.legal_status,
     legalStatus: LEGAL_LABELS[row.legal_status],
+    publication_status: row.publication_status ?? 'draft',
+    rejection_reason: row.rejection_reason ?? null,
+    legal_disclaimer_accepted: Boolean(row.legal_disclaimer_accepted),
+    documents_completed: Boolean(row.documents_completed),
     status_legacy: row.operation_type,
     featured: Boolean(row.featured),
     verified: row.legal_status === 'verificada',

@@ -1,6 +1,6 @@
 import { mapDbProperty, type DbProperty } from '@/data/mappers/propertyMapper';
 import type { Property } from '@/data/catalog';
-import type { OperationType, PropertyCategory } from '@/data/types';
+import type { OperationType, PropertyCategory, PublicationStatus } from '@/data/types';
 import { getSupabase } from '@/lib/supabase';
 import { useSupabase } from '@/lib/env';
 
@@ -8,7 +8,7 @@ async function fetchAllFromDb(): Promise<Property[]> {
   const { data, error } = await getSupabase()
     .from('properties')
     .select('*')
-    .eq('status', 'activa')
+    .eq('publication_status', 'published')
     .order('featured', { ascending: false })
     .order('created_at', { ascending: false });
 
@@ -36,7 +36,7 @@ export async function fetchPropertiesByCategory(category: PropertyCategory): Pro
     .from('properties')
     .select('*')
     .eq('category', category)
-    .eq('status', 'activa');
+    .eq('publication_status', 'published');
 
   if (error) throw error;
   return (data as DbProperty[]).map(mapDbProperty);
@@ -49,7 +49,7 @@ export async function fetchFeatured(): Promise<Property[]> {
     .from('properties')
     .select('*')
     .eq('featured', true)
-    .eq('status', 'activa')
+    .eq('publication_status', 'published')
     .limit(10);
 
   if (error) throw error;
@@ -63,7 +63,7 @@ export async function fetchRecommended(
 ): Promise<Property[]> {
   if (!useSupabase()) return [];
 
-  let q = getSupabase().from('properties').select('*').eq('status', 'activa');
+  let q = getSupabase().from('properties').select('*').eq('publication_status', 'published');
   if (category) q = q.eq('category', category);
   if (operationType) q = q.eq('operation_type', operationType);
   if (budgetMax) q = q.lte('price', budgetMax);
@@ -80,7 +80,7 @@ export async function fetchVerifiedLegal(): Promise<Property[]> {
     .from('properties')
     .select('*')
     .eq('legal_status', 'verificada')
-    .eq('status', 'activa');
+    .eq('publication_status', 'published');
 
   if (error) throw error;
   return (data as DbProperty[]).map(mapDbProperty);
@@ -93,7 +93,7 @@ export async function fetchByBroker(brokerId: string): Promise<Property[]> {
     .from('properties')
     .select('*')
     .eq('broker_id', brokerId)
-    .eq('status', 'activa');
+    .eq('publication_status', 'published');
 
   if (error) throw error;
   return (data as DbProperty[]).map(mapDbProperty);
@@ -111,7 +111,11 @@ export interface CreatePropertyInput {
   size_m2: number;
   bedrooms?: number;
   bathrooms?: number;
-  broker_id?: string;
+  broker_id: string;
+  images?: string[];
+  publication_status?: PublicationStatus;
+  legal_disclaimer_accepted: boolean;
+  documents_completed: boolean;
   has_public_deed?: boolean;
   has_no_lien_certificate?: boolean;
   has_cadastral_certificate?: boolean;
@@ -128,8 +132,12 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
       currency: 'MXN',
       legal_status: 'pendiente',
       status: 'activa',
+      publication_status: input.publication_status ?? 'pending_review',
+      rejection_reason: null,
+      legal_disclaimer_accepted: input.legal_disclaimer_accepted,
+      documents_completed: input.documents_completed,
       featured: false,
-      images: [],
+      images: input.images ?? [],
       amenities: [],
     })
     .select()
@@ -137,4 +145,33 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
 
   if (error) throw error;
   return mapDbProperty(data as DbProperty);
+}
+
+export async function fetchPendingReviewProperties(): Promise<Property[]> {
+  if (!useSupabase()) return [];
+
+  const { data, error } = await getSupabase()
+    .from('properties')
+    .select('*')
+    .in('publication_status', ['pending_review', 'rejected'])
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data as DbProperty[]).map(mapDbProperty);
+}
+
+export async function updatePropertyPublicationStatus(
+  id: string,
+  publicationStatus: PublicationStatus,
+  rejectionReason: string | null = null,
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from('properties')
+    .update({
+      publication_status: publicationStatus,
+      rejection_reason: publicationStatus === 'rejected' ? rejectionReason ?? 'Documentacion incompleta' : null,
+      legal_status: publicationStatus === 'published' ? 'verificada' : 'en_revision',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw error;
 }

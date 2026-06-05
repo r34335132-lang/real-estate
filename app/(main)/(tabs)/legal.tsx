@@ -1,9 +1,14 @@
-import React from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
+import { useApp } from '@/context/AppContext';
+import { fetchPendingBrokerProfiles, updateBrokerVerificationStatus } from '@/data/services/brokerService';
+import { fetchPendingReviewProperties, updatePropertyPublicationStatus } from '@/data/services/propertyService';
+import type { BrokerProfile } from '@/data/types';
+import type { Property } from '@/data/catalog';
 
 interface LegalOption {
   icon: keyof typeof Feather.glyphMap;
@@ -97,6 +102,49 @@ const SCOPE_MODULES: ScopeModule[] = [
 export default function LegalScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { role } = useApp();
+  const [brokers, setBrokers] = useState<BrokerProfile[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+
+  const loadAdminReview = async () => {
+    if (role !== 'admin') return;
+    setLoadingAdmin(true);
+    try {
+      const [brokerRows, propertyRows] = await Promise.all([
+        fetchPendingBrokerProfiles(),
+        fetchPendingReviewProperties(),
+      ]);
+      setBrokers(brokerRows);
+      setProperties(propertyRows);
+    } catch {
+      Alert.alert('Error', 'No se pudo cargar el panel de revision.');
+    } finally {
+      setLoadingAdmin(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdminReview();
+  }, [role]);
+
+  const handleBrokerDecision = async (brokerId: string, approved: boolean) => {
+    try {
+      await updateBrokerVerificationStatus(brokerId, approved ? 'approved' : 'rejected');
+      await loadAdminReview();
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar el broker.');
+    }
+  };
+
+  const handlePropertyDecision = async (propertyId: string, published: boolean) => {
+    try {
+      await updatePropertyPublicationStatus(propertyId, published ? 'published' : 'rejected');
+      await loadAdminReview();
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar la propiedad.');
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -127,6 +175,52 @@ export default function LegalScreen() {
           { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100 },
         ]}
       >
+        {role === 'admin' && (
+          <View style={[styles.adminPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.adminHeader}>
+              <Feather name="sliders" size={18} color="#C8A96B" />
+              <Text style={[styles.adminTitle, { color: colors.foreground }]}>Panel admin</Text>
+            </View>
+            {loadingAdmin ? (
+              <ActivityIndicator color="#0F6BFF" />
+            ) : (
+              <>
+                <Text style={[styles.adminSectionTitle, { color: colors.foreground }]}>Brokers por revisar</Text>
+                {brokers.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No hay brokers pendientes.</Text>
+                ) : (
+                  brokers.map((broker) => (
+                    <ReviewRow
+                      key={broker.id}
+                      title={broker.full_name || broker.email}
+                      subtitle={`${broker.company_name || 'Sin empresa'} · ${broker.verification_status}`}
+                      onApprove={() => handleBrokerDecision(broker.id, true)}
+                      onReject={() => handleBrokerDecision(broker.id, false)}
+                      colors={colors}
+                    />
+                  ))
+                )}
+
+                <Text style={[styles.adminSectionTitle, { color: colors.foreground }]}>Propiedades por revisar</Text>
+                {properties.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No hay propiedades pendientes.</Text>
+                ) : (
+                  properties.map((property) => (
+                    <ReviewRow
+                      key={property.id}
+                      title={property.title}
+                      subtitle={`${property.location} · ${property.publication_status}`}
+                      onApprove={() => handlePropertyDecision(property.id, true)}
+                      onReject={() => handlePropertyDecision(property.id, false)}
+                      colors={colors}
+                    />
+                  ))
+                )}
+              </>
+            )}
+          </View>
+        )}
+
         {/* Trust Banner */}
         <View style={styles.trustBanner}>
           <Text style={styles.trustTitle}>Tu inversión protegida</Text>
@@ -208,6 +302,39 @@ export default function LegalScreen() {
   );
 }
 
+function ReviewRow({
+  title,
+  subtitle,
+  onApprove,
+  onReject,
+  colors,
+}: {
+  title: string;
+  subtitle: string;
+  onApprove: () => void;
+  onReject: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={[styles.reviewRow, { borderColor: colors.border }]}>
+      <View style={styles.reviewInfo}>
+        <Text style={[styles.reviewTitle, { color: colors.foreground }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+      <TouchableOpacity style={[styles.reviewBtn, styles.approveBtn]} onPress={onApprove} activeOpacity={0.85}>
+        <Feather name="check" size={14} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.reviewBtn, styles.rejectBtn]} onPress={onReject} activeOpacity={0.85}>
+        <Feather name="x" size={14} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
@@ -241,6 +368,63 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     gap: 20,
+  },
+  adminPanel: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  adminHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  adminTitle: {
+    fontSize: 17,
+    fontFamily: 'Inter_700Bold',
+  },
+  adminSectionTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  reviewInfo: {
+    flex: 1,
+  },
+  reviewTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 2,
+  },
+  reviewSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+  },
+  reviewBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  approveBtn: {
+    backgroundColor: '#22C55E',
+  },
+  rejectBtn: {
+    backgroundColor: '#EF4444',
   },
   trustBanner: {
     backgroundColor: '#071B33',

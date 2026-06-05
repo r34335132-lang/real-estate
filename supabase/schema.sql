@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('admin', 'broker', 'abogado', 'comprador');
+  CREATE TYPE user_role AS ENUM ('admin', 'broker', 'buyer');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT,
   phone TEXT DEFAULT '',
   avatar_url TEXT,
-  role user_role NOT NULL DEFAULT 'comprador',
+  role user_role NOT NULL DEFAULT 'buyer',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -43,7 +43,14 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS broker_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  full_name TEXT DEFAULT '',
   company_name TEXT DEFAULT 'JC Real Estate Group',
+  ampi_number TEXT DEFAULT '',
+  sedetus_number TEXT DEFAULT '',
+  license_type TEXT DEFAULT '',
+  id_document_url TEXT DEFAULT '',
+  verification_status TEXT NOT NULL DEFAULT 'pending',
+  rejection_reason TEXT,
   professional_title TEXT DEFAULT 'Broker Inmobiliario',
   bio TEXT DEFAULT '',
   city TEXT DEFAULT '',
@@ -91,8 +98,23 @@ CREATE TABLE IF NOT EXISTS properties (
   has_plans BOOLEAN DEFAULT false,
   seller_registry_type TEXT,
   seller_registry_number TEXT,
+  publication_status TEXT NOT NULL DEFAULT 'draft',
+  rejection_reason TEXT,
+  legal_disclaimer_accepted BOOLEAN NOT NULL DEFAULT false,
+  documents_completed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS property_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  document_type TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  rejection_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(property_id, document_type)
 );
 
 CREATE TABLE IF NOT EXISTS user_preferences (
@@ -147,7 +169,7 @@ AS $$
 DECLARE
   r user_role;
 BEGIN
-  r := COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'comprador');
+  r := COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'buyer');
   INSERT INTO public.users (id, full_name, email, role)
   VALUES (
     NEW.id,
@@ -173,6 +195,7 @@ CREATE TRIGGER on_auth_user_created
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE broker_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
@@ -183,17 +206,66 @@ CREATE POLICY "users_insert_own" ON users FOR INSERT WITH CHECK (auth.uid() = id
 CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "brokers_select_all" ON broker_profiles FOR SELECT USING (true);
-CREATE POLICY "brokers_update_own" ON broker_profiles FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "brokers_insert_own" ON broker_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "brokers_update_own" ON broker_profiles FOR UPDATE
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+  )
+  WITH CHECK (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+  );
 
 CREATE POLICY "properties_select_all" ON properties FOR SELECT USING (true);
 CREATE POLICY "properties_insert_broker" ON properties FOR INSERT
   WITH CHECK (
-    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('broker', 'admin'))
+    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR EXISTS (
+      SELECT 1
+      FROM broker_profiles b
+      WHERE b.id = broker_id
+        AND b.user_id = auth.uid()
+        AND b.verification_status = 'approved'
+        AND publication_status <> 'published'
+    )
   );
 CREATE POLICY "properties_update_broker" ON properties FOR UPDATE
   USING (
-    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('broker', 'admin'))
+    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR EXISTS (SELECT 1 FROM broker_profiles b WHERE b.id = broker_id AND b.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR (
+      publication_status <> 'published'
+      AND EXISTS (SELECT 1 FROM broker_profiles b WHERE b.id = broker_id AND b.user_id = auth.uid())
+    )
   );
+
+CREATE POLICY "property_documents_select_involved" ON property_documents FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM properties p
+      LEFT JOIN broker_profiles b ON b.id = p.broker_id
+      WHERE p.id = property_documents.property_id
+        AND (b.user_id = auth.uid() OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'))
+    )
+  );
+CREATE POLICY "property_documents_insert_broker" ON property_documents FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM properties p
+      JOIN broker_profiles b ON b.id = p.broker_id
+      WHERE p.id = property_documents.property_id
+        AND b.user_id = auth.uid()
+        AND b.verification_status = 'approved'
+    )
+  );
+CREATE POLICY "property_documents_update_admin" ON property_documents FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin'));
 
 CREATE POLICY "prefs_select_own" ON user_preferences FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "prefs_upsert_own" ON user_preferences FOR ALL USING (auth.uid() = user_id);

@@ -40,7 +40,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType>({} as AppContextType);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<UserRole>('comprador');
+  const [role, setRole] = useState<UserRole>('buyer');
   const [user, setUser] = useState<User | null>(null);
   const [sessionKind, setSessionKind] = useState<SessionKind>('none');
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -53,7 +53,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const resetLocalSession = useCallback(() => {
     setUser(null);
-    setRole('comprador');
+    setRole('buyer');
     setSessionKind('none');
     setFavorites([]);
     setPreferencesState(null);

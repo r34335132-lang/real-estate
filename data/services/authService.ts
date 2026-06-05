@@ -47,7 +47,7 @@ function profileDraftFromAuthUser(authUser: AuthUser) {
     email,
     phone: '',
     avatar_url: authUser.user_metadata?.avatar_url as string | undefined,
-    role: (authUser.user_metadata?.role as UserRole) || 'comprador',
+    role: (authUser.user_metadata?.role as UserRole) || 'buyer',
     created_at: authUser.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -116,6 +116,29 @@ export async function ensureUserProfile(
   return createUserProfile(authUser);
 }
 
+async function ensureBrokerProfile(profile: User): Promise<void> {
+  if (profile.role !== 'broker' || !useSupabase()) return;
+
+  await getSupabase()
+    .from('broker_profiles')
+    .upsert(
+      {
+        user_id: profile.id,
+        full_name: profile.full_name,
+        phone: profile.phone ?? '',
+        email: profile.email,
+        company_name: '',
+        ampi_number: '',
+        sedetus_number: '',
+        license_type: '',
+        id_document_url: '',
+        verification_status: 'pending',
+        rejection_reason: null,
+      },
+      { onConflict: 'user_id' },
+    );
+}
+
 export async function signUpWithEmail(
   email: string,
   password: string,
@@ -172,6 +195,8 @@ export async function signUpWithEmail(
         'No se pudo crear tu perfil. Ejecuta migrate-users-insert-policy.sql y el trigger handle_new_user en Supabase.',
     };
   }
+
+  await ensureBrokerProfile(profile);
 
   return { user: profile, error: null };
 }
