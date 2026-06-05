@@ -29,32 +29,32 @@ const OPTIONS: LegalOption[] = [
   {
     icon: 'file-text',
     title: 'Generar Contrato',
-    description: 'Contratos de compraventa, arrendamiento y promesa de venta certificados.',
+    description: 'Plantillas y documentos operativos sujetos a revision profesional externa.',
     color: '#0F6BFF',
     badge: 'Nuevo',
   },
   {
     icon: 'check-circle',
-    title: 'Validar Propiedad',
-    description: 'Verificación de documentos, escrituras y situación jurídica del inmueble.',
+    title: 'Revisar documentacion',
+    description: 'Revision administrativa de documentos cargados por el vendedor.',
     color: '#22C55E',
   },
   {
     icon: 'edit-3',
     title: 'Firma Electrónica',
-    description: 'Firma digital con validez jurídica plena. Proceso seguro y rápido.',
+    description: 'Flujo de firma sujeto a los proveedores y requisitos aplicables.',
     color: '#C8A96B',
   },
   {
     icon: 'users',
-    title: 'Asesoría Legal',
-    description: 'Consulta con abogados especializados en bienes raíces y derecho inmobiliario.',
+    title: 'Contacto especializado',
+    description: 'Contacto con profesionales externos cuando el usuario lo solicite.',
     color: '#A78BFA',
   },
   {
     icon: 'search',
-    title: 'Revisión de Documentos',
-    description: 'Análisis y revisión legal de toda la documentación de la transacción.',
+    title: 'Revision de documentos',
+    description: 'Revision administrativa de documentos cargados para decidir si una propiedad puede publicarse.',
     color: '#F472B6',
   },
   {
@@ -66,10 +66,10 @@ const OPTIONS: LegalOption[] = [
 ];
 
 const TRUST_POINTS = [
-  '15 años de experiencia legal inmobiliaria',
-  'Red de abogados certificados AMPI',
+  'Experiencia operativa en publicacion inmobiliaria',
+  'Red de contactos profesionales externos',
   'Revisión en menos de 48 horas',
-  'Contratos con validez en toda la República',
+  'Documentos sujetos a revision de profesionales competentes',
 ];
 
 const SCOPE_MODULES: ScopeModule[] = [
@@ -93,9 +93,9 @@ const SCOPE_MODULES: ScopeModule[] = [
   },
   {
     icon: 'briefcase',
-    title: 'Legal',
-    description: 'Contratos digitales, validación de propiedades y herramientas jurídicas para abogados.',
-    items: ['Contratos digitales', 'Validación', 'Herramientas jurídicas'],
+    title: 'Docs',
+    description: 'Documentos digitales, validación de propiedades y herramientas jurídicas para abogados.',
+    items: ['Documentos digitales', 'Validación', 'Herramientas jurídicas'],
   },
 ];
 
@@ -162,8 +162,8 @@ export default function LegalScreen() {
             <Feather name="shield" size={26} color="#22C55E" />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Protección Legal JC</Text>
-            <Text style={styles.headerSubtitle}>Respaldo jurídico para tu inversión</Text>
+            <Text style={styles.headerTitle}>Gestion documental JC</Text>
+            <Text style={styles.headerSubtitle}>Informacion documental para publicacion</Text>
           </View>
         </View>
       </View>
@@ -223,9 +223,9 @@ export default function LegalScreen() {
 
         {/* Trust Banner */}
         <View style={styles.trustBanner}>
-          <Text style={styles.trustTitle}>Tu inversión protegida</Text>
+          <Text style={styles.trustTitle}>Informacion para decidir</Text>
           <Text style={styles.trustSubtitle}>
-            Todas las propiedades de JC cuentan con validación jurídica. Compra con total seguridad y respaldo legal.
+            Todas las propiedades de JC cuentan con revision administrativa. Revisa la informacion y realiza tu propia debida diligencia antes de tomar decisiones.
           </Text>
           <View style={styles.trustPoints}>
             {TRUST_POINTS.map((point, i) => (
@@ -238,7 +238,7 @@ export default function LegalScreen() {
         </View>
 
         {/* Services */}
-        <Text style={styles.sectionTitle}>Servicios Legales</Text>
+        <Text style={styles.sectionTitle}>Herramientas documentales</Text>
         <View style={styles.optionsGrid}>
           {OPTIONS.map((opt, i) => (
             <TouchableOpacity
@@ -291,8 +291,8 @@ export default function LegalScreen() {
           <View style={styles.contactLeft}>
             <Feather name="phone" size={20} color="#C8A96B" />
             <View>
-              <Text style={styles.contactTitle}>Habla con un abogado ahora</Text>
-              <Text style={styles.contactSubtitle}>Asesoría gratuita — Primera consulta sin costo</Text>
+              <Text style={styles.contactTitle}>Solicita contacto especializado</Text>
+              <Text style={styles.contactSubtitle}>Canal de contacto sujeto a disponibilidad</Text>
             </View>
           </View>
           <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.4)" />

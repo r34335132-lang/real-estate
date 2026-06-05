@@ -26,7 +26,7 @@ function AuthRedirector() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (sessionKind === 'none' && pathname !== '/') {
+    if (sessionKind === 'none' && pathname !== '/' && pathname !== '/privacy' && pathname !== '/terms') {
       router.replace('/');
     }
   }, [authLoading, pathname, sessionKind]);
@@ -60,6 +60,8 @@ export default function RootLayout() {
                 <AuthRedirector />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
+                  <Stack.Screen name="privacy" />
+                  <Stack.Screen name="terms" />
                   <Stack.Screen name="(main)" />
                   <Stack.Screen name="+not-found" />
                 </Stack>

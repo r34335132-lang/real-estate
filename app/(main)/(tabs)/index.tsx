@@ -196,7 +196,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Brokers verificados" subtitle="Expertos de confianza" />
+          <SectionHeader title="Brokers revisados" subtitle="Perfiles revisados por la plataforma" />
           <FlatList
             data={verifiedBrokers}
             horizontal
@@ -210,7 +210,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Verificadas legalmente" subtitle="Documentación validada" />
+          <SectionHeader title="Propiedades con revision administrativa" subtitle="Documentacion revisada para publicacion" />
           <View style={styles.verticalList}>
             {legalVerified.slice(0, 3).map((item) => (
               <PropertyCard

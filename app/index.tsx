@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
@@ -223,10 +224,16 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
           </ScrollView>
         )}
-
-        <Text style={styles.terms}>
-          Al ingresar aceptas nuestros Términos de Servicio y Política de Privacidad
-        </Text>
+        <View style={styles.termsRow}>
+          <Text style={styles.termsMuted}>Al ingresar aceptas nuestros </Text>
+          <TouchableOpacity onPress={() => router.push('/terms' as never)}>
+            <Text style={styles.termsLink}>Terminos de Servicio</Text>
+          </TouchableOpacity>
+          <Text style={styles.termsMuted}> y </Text>
+          <TouchableOpacity onPress={() => router.push('/privacy' as never)}>
+            <Text style={styles.termsLink}>Politica de Privacidad</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </View>
   );
@@ -262,5 +269,7 @@ const styles = StyleSheet.create({
   submitBtn: { backgroundColor: '#0F6BFF', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   submitText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#fff' },
   errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: '#FCA5A5', textAlign: 'center' },
-  terms: { fontSize: 10, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 8 },
+  termsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 },
+  termsMuted: { fontSize: 10, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.35)', textAlign: 'center' },
+  termsLink: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.72)', textDecorationLine: 'underline' },
 });

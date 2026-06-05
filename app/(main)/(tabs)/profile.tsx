@@ -11,6 +11,7 @@ import type { Property } from '@/data/catalog';
 import { useColors } from '@/hooks/useColors';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from '@/lib/support';
 
 const EMPTY_APPOINTMENTS: Appointment[] = [];
 const EMPTY_LEGAL_REQUESTS: LegalRequest[] = [];
@@ -50,6 +51,13 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleDeleteRequest = () => {
+    Alert.alert(
+      'Solicitar eliminacion',
+      `Para solicitar la eliminacion de tu cuenta, datos personales y documentos cargados, comunicate al correo ${SUPPORT_EMAIL} o WhatsApp ${SUPPORT_WHATSAPP}. Atenderemos la solicitud conforme a nuestra politica de privacidad.`,
+    );
   };
 
   const handleUpdateAvatar = async () => {
@@ -192,6 +200,24 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        <View style={[styles.policyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity style={styles.policyRow} onPress={() => router.push('/terms' as never)} activeOpacity={0.85}>
+            <Feather name="file-text" size={18} color="#C8A96B" />
+            <Text style={[styles.policyText, { color: colors.foreground }]}>Terminos y Condiciones</Text>
+            <Feather name="chevron-right" size={18} color={colors.border} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.policyRow} onPress={() => router.push('/privacy' as never)} activeOpacity={0.85}>
+            <Feather name="lock" size={18} color="#0F6BFF" />
+            <Text style={[styles.policyText, { color: colors.foreground }]}>Politica de Privacidad</Text>
+            <Feather name="chevron-right" size={18} color={colors.border} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.policyRow} onPress={handleDeleteRequest} activeOpacity={0.85}>
+            <Feather name="trash-2" size={18} color="#EF4444" />
+            <Text style={[styles.policyText, { color: colors.foreground }]}>Solicitar eliminacion de cuenta y documentos</Text>
+            <Feather name="chevron-right" size={18} color={colors.border} />
+          </TouchableOpacity>
+        </View>
+
         {isBroker && myProperties.length > 0 && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Mis propiedades</Text>
@@ -305,6 +331,9 @@ const styles = StyleSheet.create({
   },
   actionIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textAlign: 'center' },
+  policyCard: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  policyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(7,27,51,0.06)' },
+  policyText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
   sectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginTop: 4 },
   propRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 12, gap: 12, elevation: 1 },
   propThumb: { width: 60, height: 60, borderRadius: 10 },

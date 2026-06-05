@@ -29,7 +29,7 @@ interface FilterSheetProps {
 
 const LEGAL_OPTIONS: { value: LegalStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },
-  { value: 'verificada', label: 'Verificada' },
+  { value: 'verificada', label: 'Revisada' },
   { value: 'en_revision', label: 'En revisión' },
   { value: 'pendiente', label: 'Pendiente' },
 ];
@@ -160,7 +160,7 @@ export function FilterSheet({
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Estatus legal</Text>
+              <Text style={styles.sectionLabel}>Revision documental</Text>
               <View style={styles.pillRow}>
                 {LEGAL_OPTIONS.map((o) => (
                   <Pill

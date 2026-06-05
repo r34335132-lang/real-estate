@@ -141,7 +141,7 @@ export default function PropertyDetailScreen() {
           {property.verified && (
             <View style={styles.legalBadge}>
               <Feather name="shield" size={13} color="#22C55E" />
-              <Text style={styles.legalBadgeText}>Verificada Legalmente</Text>
+              <Text style={styles.legalBadgeText}>Revision documental</Text>
             </View>
           )}
         </View>
@@ -199,7 +199,7 @@ export default function PropertyDetailScreen() {
         <View style={[styles.legalCard, { backgroundColor: '#071B33' }]}>
           <View style={styles.legalHeader}>
             <Feather name="shield" size={20} color="#22C55E" />
-            <Text style={styles.legalTitle}>Estado Legal</Text>
+            <Text style={styles.legalTitle}>Revision documental</Text>
           </View>
           <Text style={styles.legalStatus}>{property.legalStatus}</Text>
           <TouchableOpacity
@@ -207,7 +207,7 @@ export default function PropertyDetailScreen() {
             activeOpacity={0.85}
             onPress={() => router.push('/(main)/(tabs)/legal')}
           >
-            <Text style={styles.legalBtnText}>Ver Documentación Completa</Text>
+            <Text style={styles.legalBtnText}>Ver informacion documental</Text>
             <Feather name="arrow-right" size={14} color="#22C55E" />
           </TouchableOpacity>
         </View>

@@ -49,7 +49,10 @@ const OPERATION_OPTIONS: { label: string; value: OperationType }[] = [
 type DraftDocument = { document_type: PropertyDocumentType; file_url: string };
 
 const REQUIRED_DOCUMENTS_MESSAGE =
-  'Para publicar esta propiedad debes completar la documentacion legal requerida.';
+  'Para publicar esta propiedad debes completar la documentacion requerida para revision administrativa.';
+
+const ADMIN_REVIEW_NOTICE =
+  'La documentacion cargada sera revisada unicamente con fines administrativos para decidir si la propiedad puede publicarse en la plataforma. Esta revision no sustituye la validacion de un notario, abogado, autoridad registral o institucion competente. La responsabilidad legal, fiscal, registral y documental del inmueble corresponde exclusivamente al propietario, broker o vendedor que realiza la publicacion.';
 
 export default function PublishScreen() {
   const colors = useColors();
@@ -205,7 +208,7 @@ export default function PublishScreen() {
       return;
     }
     if (!documentsCompleted) {
-      Alert.alert('Documentacion legal requerida', REQUIRED_DOCUMENTS_MESSAGE);
+      Alert.alert('Documentacion requerida', REQUIRED_DOCUMENTS_MESSAGE);
       return;
     }
     if (!acceptedDisclaimer) {
@@ -320,7 +323,7 @@ export default function PublishScreen() {
   }
 
   return (
-    <ScreenShell colors={colors} insetsTop={insets.top} subtitle="Documentacion legal y revision admin">
+    <ScreenShell colors={colors} insetsTop={insets.top} subtitle="Documentacion y revision administrativa">
       <View style={styles.field}>
         <Text style={[styles.label, { color: colors.mutedForeground }]}>Categoria</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -413,9 +416,7 @@ export default function PublishScreen() {
 
       <View style={[styles.legalBox, { backgroundColor: '#071B33' }]}>
         <Text style={styles.legalTitle}>Aviso legal</Text>
-        <Text style={styles.legalText}>
-          La plataforma actua unicamente como medio de contacto y publicacion. La responsabilidad legal, fiscal, registral y documental del inmueble corresponde exclusivamente al propietario, broker o vendedor que realiza la publicacion.
-        </Text>
+        <Text style={styles.legalText}>{ADMIN_REVIEW_NOTICE}</Text>
         <TouchableOpacity style={styles.legalCheckRow} onPress={() => setAcceptedDisclaimer((prev) => !prev)} activeOpacity={0.85}>
           <View style={[styles.checkbox, acceptedDisclaimer && styles.checkboxActive]}>
             {acceptedDisclaimer && <Feather name="check" size={14} color="#fff" />}

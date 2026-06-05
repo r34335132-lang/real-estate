@@ -14,7 +14,11 @@
       "backgroundColor": "#071B33"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Usamos tus fotos solo para subir imagenes de propiedades, identificacion del broker y documentos requeridos para revision administrativa.",
+        "NSCameraUsageDescription": "Usamos la camara solo para tomar fotos de propiedades, identificacion del broker o documentos requeridos para revision administrativa."
+      }
     },
     "android": {
       "backgroundColor": "#071B33"
@@ -30,6 +34,13 @@
         }
       ],
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tus fotos para subir imagenes de propiedades, identificacion del broker y documentos requeridos para revision administrativa.",
+          "cameraPermission": "La app necesita acceso a la camara para tomar fotos de propiedades, identificacion del broker o documentos requeridos para revision administrativa."
+        }
+      ],
       "expo-web-browser"
     ],
     "experiments": {

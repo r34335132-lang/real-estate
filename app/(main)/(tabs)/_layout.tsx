@@ -26,7 +26,7 @@ function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="legal">
         <Icon sf={{ default: 'shield', selected: 'shield.fill' }} />
-        <Label>Legal</Label>
+        <Label>Docs</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: 'person', selected: 'person.fill' }} />
@@ -89,7 +89,7 @@ function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="legal" options={{ title: 'Legal', tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
+      <Tabs.Screen name="legal" options={{ title: 'Docs', tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }} />
     </Tabs>
   );

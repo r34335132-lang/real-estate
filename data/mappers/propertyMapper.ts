@@ -13,9 +13,9 @@ const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
 };
 
 const LEGAL_LABELS: Record<LegalStatus, string> = {
-  pendiente: 'Documentación pendiente',
-  en_revision: 'En revisión legal',
-  verificada: 'Escritura verificada',
+  pendiente: 'Documentacion pendiente',
+  en_revision: 'En revision documental',
+  verificada: 'Documentacion revisada para publicacion',
   rechazada: 'Rechazada',
 };
 
@@ -100,7 +100,7 @@ export function mapDbProperty(row: DbProperty): Property {
     documents_completed: Boolean(row.documents_completed),
     status_legacy: row.operation_type,
     featured: Boolean(row.featured),
-    verified: row.legal_status === 'verificada',
+    verified: row.publication_status === 'published' && Boolean(row.documents_completed),
     has_public_deed: Boolean(row.has_public_deed),
     has_no_lien_certificate: Boolean(row.has_no_lien_certificate),
     has_cadastral_certificate: Boolean(row.has_cadastral_certificate),
