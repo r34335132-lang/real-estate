@@ -4,17 +4,17 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('admin', 'broker', 'abogado', 'comprador', 'invitado');
+  CREATE TYPE user_role AS ENUM ('admin', 'broker', 'abogado', 'comprador');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE property_category AS ENUM ('terreno', 'casa', 'edificio', 'hotel', 'playa');
+  CREATE TYPE property_category AS ENUM ('terreno', 'casa', 'edificio', 'hotel', 'playa', 'cenote');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE operation_type AS ENUM ('venta', 'renta');
+  CREATE TYPE operation_type AS ENUM ('compra', 'venta', 'renta', 'permuta', 'asesoria');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -85,6 +85,12 @@ CREATE TABLE IF NOT EXISTS properties (
   legal_status legal_status DEFAULT 'pendiente',
   status listing_status DEFAULT 'activa',
   featured BOOLEAN DEFAULT false,
+  has_public_deed BOOLEAN DEFAULT false,
+  has_no_lien_certificate BOOLEAN DEFAULT false,
+  has_cadastral_certificate BOOLEAN DEFAULT false,
+  has_plans BOOLEAN DEFAULT false,
+  seller_registry_type TEXT,
+  seller_registry_number TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

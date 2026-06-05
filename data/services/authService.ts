@@ -211,3 +211,18 @@ export async function signOut(): Promise<void> {
   await clearAuthSession();
 }
 
+export async function restoreSession(): Promise<User | null> {
+  if (!useSupabase()) return null;
+
+  const { data } = await getSupabase().auth.getSession();
+  if (!data.session?.user) return null;
+
+  const profile = await ensureUserProfile(data.session.user, { createIfMissing: false });
+  if (!profile) {
+    await clearAuthSession();
+    return null;
+  }
+
+  return profile;
+}
+

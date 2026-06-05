@@ -41,6 +41,14 @@ const PRICE_PRESETS = [
   { label: '+$50M', min: 50_000_000, max: null },
 ];
 
+const OPERATION_OPTIONS: { value: OperationType; label: string }[] = [
+  { value: 'compra', label: 'Compra' },
+  { value: 'venta', label: 'Venta' },
+  { value: 'renta', label: 'Renta' },
+  { value: 'permuta', label: 'Permuta' },
+  { value: 'asesoria', label: 'Asesoria' },
+];
+
 function Pill({
   label,
   active,
@@ -112,16 +120,14 @@ export function FilterSheet({
               <Text style={styles.sectionLabel}>Operación</Text>
               <View style={styles.pillRow}>
                 <Pill label="Todos" active={draft.operationType === 'all'} onPress={() => set({ operationType: 'all' })} />
-                <Pill
-                  label="Venta"
-                  active={draft.operationType === 'venta'}
-                  onPress={() => set({ operationType: 'venta' as OperationType })}
-                />
-                <Pill
-                  label="Renta"
-                  active={draft.operationType === 'renta'}
-                  onPress={() => set({ operationType: 'renta' as OperationType })}
-                />
+                {OPERATION_OPTIONS.map((op) => (
+                  <Pill
+                    key={op.value}
+                    label={op.label}
+                    active={draft.operationType === op.value}
+                    onPress={() => set({ operationType: op.value })}
+                  />
+                ))}
               </View>
             </View>
 

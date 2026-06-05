@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import { BUDGET_OPTIONS, CATEGORIES } from '@/data/catalog';
-import { BudgetRange, PropertyCategory } from '@/data/types';
+import { BudgetRange, OperationType, PropertyCategory } from '@/data/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 56) / 2;
@@ -31,7 +31,7 @@ export default function OnboardingScreen() {
   const { setPreferences, completeOnboarding } = useApp();
   const [step, setStep] = useState<Step>('category');
   const [category, setCategory] = useState<PropertyCategory>('casa');
-  const [operation, setOperation] = useState<'venta' | 'renta'>('venta');
+  const [operation, setOperation] = useState<OperationType>('venta');
   const [budget, setBudget] = useState<BudgetRange>('undefined');
   const [location, setLocation] = useState('');
 
@@ -130,8 +130,11 @@ export default function OnboardingScreen() {
             <View style={styles.operationRow}>
               {(
                 [
-                  { id: 'venta' as const, label: 'Comprar', icon: 'key' as const, desc: 'Adquirir propiedad' },
-                  { id: 'renta' as const, label: 'Rentar', icon: 'calendar' as const, desc: 'Arrendamiento' },
+                  { id: 'compra' as const, label: 'Compra', icon: 'search' as const, desc: 'Busco adquirir' },
+                  { id: 'venta' as const, label: 'Venta', icon: 'key' as const, desc: 'Comprar propiedad' },
+                  { id: 'renta' as const, label: 'Renta', icon: 'calendar' as const, desc: 'Arrendamiento' },
+                  { id: 'permuta' as const, label: 'Permuta', icon: 'refresh-cw' as const, desc: 'Intercambio' },
+                  { id: 'asesoria' as const, label: 'Asesoria', icon: 'briefcase' as const, desc: 'Acompanamiento' },
                 ] as const
               ).map((op) => {
                 const active = operation === op.id;
@@ -302,9 +305,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  operationRow: { flexDirection: 'row', gap: 14 },
+  operationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   operationCard: {
-    flex: 1,
+    width: CARD_WIDTH,
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,

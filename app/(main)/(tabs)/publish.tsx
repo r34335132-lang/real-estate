@@ -19,6 +19,7 @@ import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
 import type { PropertyCategory } from '@/data/catalog';
 import { createProperty } from '@/data/services/propertyService';
+import type { OperationType } from '@/data/types';
 import { useSupabase } from '@/lib/env';
 import { pickAndUploadImage } from '@/lib/storage';
 
@@ -28,9 +29,16 @@ const CATEGORY_OPTIONS: { slug: PropertyCategory; label: string }[] = [
   { slug: 'edificio', label: 'Edificio' },
   { slug: 'hotel', label: 'Hotel' },
   { slug: 'playa', label: 'Playa' },
+  { slug: 'cenote', label: 'Cenote' },
 ];
 
-const STATUS_OPTIONS = ['En Venta', 'En Renta'];
+const STATUS_OPTIONS: { label: string; value: OperationType }[] = [
+  { label: 'Compra', value: 'compra' },
+  { label: 'Venta', value: 'venta' },
+  { label: 'Renta', value: 'renta' },
+  { label: 'Permuta', value: 'permuta' },
+  { label: 'Asesoria', value: 'asesoria' },
+];
 
 export default function PublishScreen() {
   const colors = useColors();
@@ -47,8 +55,14 @@ export default function PublishScreen() {
   const [area, setArea] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<PropertyCategory>('casa');
-  const [status, setStatus] = useState('En Venta');
+  const [operationType, setOperationType] = useState<OperationType>('venta');
   const [images, setImages] = useState<string[]>([]);
+  const [hasPublicDeed, setHasPublicDeed] = useState(false);
+  const [hasNoLienCertificate, setHasNoLienCertificate] = useState(false);
+  const [hasCadastralCertificate, setHasCadastralCertificate] = useState(false);
+  const [hasPlans, setHasPlans] = useState(false);
+  const [sellerRegistryType, setSellerRegistryType] = useState<'ampi' | 'sedetus'>('ampi');
+  const [sellerRegistryNumber, setSellerRegistryNumber] = useState('');
 
   const handleAddPhoto = async () => {
     if (images.length >= 20) return Alert.alert('Límite', 'Máximo 20 imágenes.');
@@ -73,6 +87,20 @@ export default function PublishScreen() {
       return;
     }
 
+    if (
+      !hasPublicDeed ||
+      !hasNoLienCertificate ||
+      !hasCadastralCertificate ||
+      !hasPlans ||
+      !sellerRegistryNumber.trim()
+    ) {
+      Alert.alert(
+        'Documentacion legal requerida',
+        'Para proteger a la plataforma y a los compradores, solo se aceptan propiedades con documentacion legal completa. Si no cumples con estos requisitos, la propiedad no podra publicarse.',
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (useSupabase()) {
@@ -80,12 +108,18 @@ export default function PublishScreen() {
           title: title.trim(),
           description: description.trim(),
           category,
-          operation_type: status === 'En Renta' ? 'renta' : 'venta',
+          operation_type: operationType,
           price: Number(price.replace(/,/g, '')),
           location: location.trim(),
           city: location.split(',')[0]?.trim() ?? location,
           state: location.split(',')[1]?.trim() ?? '',
           size_m2: Number(area.replace(/,/g, '')) || 0,
+          has_public_deed: hasPublicDeed,
+          has_no_lien_certificate: hasNoLienCertificate,
+          has_cadastral_certificate: hasCadastralCertificate,
+          has_plans: hasPlans,
+          seller_registry_type: sellerRegistryType,
+          seller_registry_number: sellerRegistryNumber.trim(),
           // Dependiendo de tu BD, puedes enviar el array de imágenes aquí
           // images: images, 
         });
@@ -101,6 +135,12 @@ export default function PublishScreen() {
       setArea('');
       setDescription('');
       setImages([]);
+      setHasPublicDeed(false);
+      setHasNoLienCertificate(false);
+      setHasCadastralCertificate(false);
+      setHasPlans(false);
+      setSellerRegistryType('ampi');
+      setSellerRegistryNumber('');
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo publicar');
     } finally {
@@ -108,7 +148,7 @@ export default function PublishScreen() {
     }
   };
 
-  if (role === 'comprador' || role === 'invitado') {
+  if (role === 'comprador') {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View
@@ -195,11 +235,11 @@ export default function PublishScreen() {
           <Text style={[styles.label, { color: colors.mutedForeground }]}>Disponibilidad</Text>
           <View style={styles.statusRow}>
             {STATUS_OPTIONS.map((opt) => {
-              const active = status === opt;
+              const active = operationType === opt.value;
               return (
                 <TouchableOpacity
-                  key={opt}
-                  onPress={() => setStatus(opt)}
+                  key={opt.value}
+                  onPress={() => setOperationType(opt.value)}
                   style={[
                     styles.statusBtn,
                     {
@@ -211,7 +251,7 @@ export default function PublishScreen() {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.statusText, { color: active ? '#fff' : colors.foreground }]}>
-                    {opt}
+                    {opt.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -326,6 +366,68 @@ export default function PublishScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Legal Requirements */}
+        <View style={[styles.legalRequirements, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.legalRequirementTitle, { color: colors.foreground }]}>
+            Requisitos legales para publicar
+          </Text>
+          <Text style={[styles.legalRequirementText, { color: colors.mutedForeground }]}>
+            Para proteger a la plataforma y a los compradores, solo se aceptan propiedades con documentacion legal completa. Si no cumples con estos requisitos, la propiedad no podra publicarse.
+          </Text>
+
+          {[
+            { label: 'Escrituras publicas', value: hasPublicDeed, setter: setHasPublicDeed },
+            { label: 'Libre de gravamen', value: hasNoLienCertificate, setter: setHasNoLienCertificate },
+            { label: 'Cedula catastral', value: hasCadastralCertificate, setter: setHasCadastralCertificate },
+            { label: 'Planos', value: hasPlans, setter: setHasPlans },
+          ].map((req) => (
+            <TouchableOpacity
+              key={req.label}
+              style={styles.legalCheckRow}
+              onPress={() => req.setter(!req.value)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, req.value && styles.checkboxActive]}>
+                {req.value && <Feather name="check" size={14} color="#fff" />}
+              </View>
+              <Text style={[styles.legalCheckText, { color: colors.foreground }]}>{req.label}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>Registro de vendedor</Text>
+          <View style={styles.statusRow}>
+            {(['ampi', 'sedetus'] as const).map((type) => {
+              const active = sellerRegistryType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setSellerRegistryType(type)}
+                  style={[
+                    styles.statusBtn,
+                    {
+                      backgroundColor: active ? '#0F6BFF' : colors.card,
+                      borderColor: active ? '#0F6BFF' : colors.border,
+                      flex: 1,
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.statusText, { color: active ? '#fff' : colors.foreground }]}>
+                    {type.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+            value={sellerRegistryNumber}
+            onChangeText={setSellerRegistryNumber}
+            placeholder="Numero AMPI o SEDETUS"
+            placeholderTextColor={colors.mutedForeground}
+          />
+        </View>
+
         {/* Legal Status */}
         <View style={[styles.legalBox, { backgroundColor: '#071B33' }]}>
           <Feather name="shield" size={20} color="#22C55E" />
@@ -419,6 +521,7 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   statusBtn: {
@@ -481,6 +584,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
     color: '#22C55E',
+  },
+  legalRequirements: {
+    gap: 12,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+  },
+  legalRequirementTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
+  },
+  legalRequirementText: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 20,
+  },
+  legalCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(15,107,255,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#0F6BFF',
+    borderColor: '#0F6BFF',
+  },
+  legalCheckText: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
   },
   submitBtn: {
     backgroundColor: '#0F6BFF',

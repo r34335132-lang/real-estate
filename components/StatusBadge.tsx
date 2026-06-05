@@ -3,12 +3,21 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 import { useColors } from '@/hooks/useColors';
+import type { OperationType } from '@/data/types';
 
 interface StatusBadgeProps {
   verified?: boolean;
-  status?: 'venta' | 'renta';
+  status?: OperationType;
   size?: 'sm' | 'md';
 }
+
+const STATUS_LABELS: Record<OperationType, string> = {
+  compra: 'Compra',
+  venta: 'Venta',
+  renta: 'Renta',
+  permuta: 'Permuta',
+  asesoria: 'Asesoria',
+};
 
 export function StatusBadge({ verified, status, size = 'md' }: StatusBadgeProps) {
   const colors = useColors();
@@ -34,16 +43,16 @@ export function StatusBadge({ verified, status, size = 'md' }: StatusBadgeProps)
       <View
         style={[
           styles.badge,
-          { backgroundColor: status === 'venta' ? '#0F6BFF20' : '#C8A96B20' },
+          { backgroundColor: status === 'venta' || status === 'compra' ? '#0F6BFF20' : '#C8A96B20' },
         ]}
       >
         <Text
           style={[
             styles.text,
-            { color: status === 'venta' ? '#0F6BFF' : '#C8A96B', fontSize: isSmall ? 10 : 11 },
+            { color: status === 'venta' || status === 'compra' ? '#0F6BFF' : '#C8A96B', fontSize: isSmall ? 10 : 11 },
           ]}
         >
-          {status === 'venta' ? 'En Venta' : 'En Renta'}
+          {STATUS_LABELS[status]}
         </Text>
       </View>
     );

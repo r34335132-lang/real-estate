@@ -40,7 +40,6 @@ export default function WelcomeScreen() {
   const {
     signIn,
     signUp,
-    loginAsGuest,
     authLoading,
   } = useApp();
 
@@ -54,7 +53,6 @@ export default function WelcomeScreen() {
   const [registerRole, setRegisterRole] = useState<UserRole>('comprador');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [guestSubmitting, setGuestSubmitting] = useState(false);
 
   const supabaseMode = useSupabase();
 
@@ -96,22 +94,6 @@ export default function WelcomeScreen() {
     goToOnboarding();
   };
 
-  const handleGuest = async () => {
-    if (guestSubmitting) return;
-    setError(null);
-    setGuestSubmitting(true);
-    try {
-      const err = await loginAsGuest();
-      if (err) {
-        setError(err);
-        return;
-      }
-      goToOnboarding();
-    } finally {
-      setGuestSubmitting(false);
-    }
-  };
-
   if (authLoading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -150,28 +132,6 @@ export default function WelcomeScreen() {
 
         {mode === 'welcome' && (
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ gap: 10 }}>
-            <TouchableOpacity
-              style={[styles.guestCard, guestSubmitting && { opacity: 0.7 }]}
-              onPress={handleGuest}
-              activeOpacity={0.9}
-              disabled={guestSubmitting}
-            >
-              <View style={styles.guestInner}>
-                <View style={styles.guestIconWrap}>
-                  {guestSubmitting ? (
-                    <ActivityIndicator color="#C8A96B" />
-                  ) : (
-                    <Feather name="compass" size={22} color="#C8A96B" />
-                  )}
-                </View>
-                <View style={styles.guestTextWrap}>
-                  <Text style={styles.guestTitle}>Explorar como invitado</Text>
-                  <Text style={styles.guestDesc}>Ver propiedades sin cuenta</Text>
-                </View>
-                <Feather name="arrow-right" size={18} color="#C8A96B" />
-              </View>
-            </TouchableOpacity>
-
             <View style={styles.footer}>
               <TouchableOpacity style={styles.submitBtn} onPress={() => { setMode('login'); setError(null); }}>
                 <Text style={styles.submitText}>Iniciar sesión</Text>
@@ -285,12 +245,6 @@ const styles = StyleSheet.create({
   logoTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 3, marginBottom: 8 },
   goldLine: { width: 40, height: 3, backgroundColor: '#C8A96B', borderRadius: 2, marginBottom: 8 },
   tagline: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.55)' },
-  guestCard: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(200,169,107,0.35)', backgroundColor: 'rgba(200,169,107,0.1)', marginTop: 8 },
-  guestInner: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  guestIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(200,169,107,0.2)', alignItems: 'center', justifyContent: 'center' },
-  guestTextWrap: { flex: 1 },
-  guestTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
-  guestDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.55)' },
   footer: { gap: 10, marginTop: 12 },
   registerBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   registerText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.85)' },

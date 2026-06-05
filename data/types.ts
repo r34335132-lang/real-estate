@@ -4,10 +4,10 @@ import type { ImageSourcePropType } from 'react-native';
 
 export type ImageAsset = ImageSourcePropType;
 
-export type UserRole = 'admin' | 'broker' | 'abogado' | 'comprador' | 'invitado';
+export type UserRole = 'admin' | 'broker' | 'abogado' | 'comprador';
 
-export type PropertyCategory = 'terreno' | 'casa' | 'edificio' | 'hotel' | 'playa';
-export type OperationType = 'venta' | 'renta';
+export type PropertyCategory = 'terreno' | 'casa' | 'edificio' | 'hotel' | 'playa' | 'cenote';
+export type OperationType = 'compra' | 'venta' | 'renta' | 'permuta' | 'asesoria';
 export type LegalStatus = 'pendiente' | 'en_revision' | 'verificada' | 'rechazada';
 export type PropertyListingStatus = 'activa' | 'vendida' | 'pausada';
 
@@ -79,6 +79,12 @@ export interface Property {
   status: PropertyListingStatus;
   featured: boolean;
   verified: boolean;
+  has_public_deed?: boolean;
+  has_no_lien_certificate?: boolean;
+  has_cadastral_certificate?: boolean;
+  has_plans?: boolean;
+  seller_registry_type?: 'ampi' | 'sedetus';
+  seller_registry_number?: string;
   created_at: string;
   updated_at: string;
   /** @deprecated use operation_type */

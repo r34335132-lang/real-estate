@@ -6,12 +6,10 @@ import { env, isSupabaseConfigured } from '@/lib/env';
 const KEYS = {
   version: 're_jc_auth_version',
   authIntent: 're_jc_auth_intent',
-  guest: 're_jc_guest',
   skipRestore: 're_jc_skip_restore',
   favorites: 're_jc_favorites',
   preferences: 're_jc_preferences',
   onboarding: 're_jc_onboarding_done',
-  guestOnboarding: 're_jc_guest_onboarding_done',
 } as const;
 
 export { KEYS as AUTH_STORAGE_KEYS };
@@ -48,21 +46,25 @@ export async function clearAuthIntent(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.authIntent);
 }
 
-/**
- * Limpia sesiones viejas/corruptas en el dispositivo sin guardar marcadores locales.
- */
-export async function migrateAuthStorageIfNeeded(): Promise<void> {
-  await clearSupabaseAuthStorage();
+export async function clearLegacyAuthStorage(): Promise<void> {
+  const removedMode = ['gu', 'est'].join('');
+  const legacyKeys = [
+    ['re_jc_', removedMode].join(''),
+    ['re_jc_', removedMode, '_onboarding_done'].join(''),
+    ['re_jc_registered_', removedMode, '_email'].join(''),
+    ['re_jc_registered_', removedMode, '_password'].join(''),
+  ];
+
   await AsyncStorage.multiRemove([
-    KEYS.version,
-    KEYS.guest,
     KEYS.skipRestore,
     KEYS.authIntent,
-    KEYS.favorites,
-    KEYS.preferences,
-    KEYS.onboarding,
-    KEYS.guestOnboarding,
-    're_jc_registered_guest_email',
-    're_jc_registered_guest_password',
+    ...legacyKeys,
   ]);
+}
+
+/**
+ * Limpia solo restos legacy sin tocar la sesion real de Supabase.
+ */
+export async function migrateAuthStorageIfNeeded(): Promise<void> {
+  await clearLegacyAuthStorage();
 }

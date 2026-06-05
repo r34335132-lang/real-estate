@@ -1,6 +1,6 @@
 import { mapDbProperty, type DbProperty } from '@/data/mappers/propertyMapper';
 import type { Property } from '@/data/catalog';
-import type { PropertyCategory } from '@/data/types';
+import type { OperationType, PropertyCategory } from '@/data/types';
 import { getSupabase } from '@/lib/supabase';
 import { useSupabase } from '@/lib/env';
 
@@ -58,7 +58,7 @@ export async function fetchFeatured(): Promise<Property[]> {
 
 export async function fetchRecommended(
   category?: PropertyCategory,
-  operationType?: 'venta' | 'renta',
+  operationType?: OperationType,
   budgetMax?: number,
 ): Promise<Property[]> {
   if (!useSupabase()) return [];
@@ -103,7 +103,7 @@ export interface CreatePropertyInput {
   title: string;
   description: string;
   category: PropertyCategory;
-  operation_type: 'venta' | 'renta';
+  operation_type: OperationType;
   price: number;
   location: string;
   city: string;
@@ -112,6 +112,12 @@ export interface CreatePropertyInput {
   bedrooms?: number;
   bathrooms?: number;
   broker_id?: string;
+  has_public_deed?: boolean;
+  has_no_lien_certificate?: boolean;
+  has_cadastral_certificate?: boolean;
+  has_plans?: boolean;
+  seller_registry_type?: 'ampi' | 'sedetus';
+  seller_registry_number?: string;
 }
 
 export async function createProperty(input: CreatePropertyInput): Promise<Property> {

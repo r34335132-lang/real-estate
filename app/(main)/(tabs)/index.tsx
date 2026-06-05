@@ -29,11 +29,11 @@ import { SectionHeader } from '@/components/SectionHeader';
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { user, isGuest, preferences, toggleFavorite, isFavorite } = useApp();
+  const { user, preferences, toggleFavorite, isFavorite } = useApp();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
 
-  const displayName = isGuest ? 'invitado' : (user?.full_name?.split(' ')[0] ?? 'Usuario');
+  const displayName = user?.full_name?.split(' ')[0] ?? 'Usuario';
 
   const { data: featured = [], isLoading: loadingFeatured } = useQuery({
     queryKey: ['properties', 'featured'],
@@ -96,12 +96,6 @@ export default function HomeScreen() {
             <Text style={styles.headerSubtitle}>Encuentra la propiedad ideal para ti</Text>
           </View>
           <View style={styles.headerActions}>
-            {isGuest && (
-              <View style={styles.guestBadge}>
-                <Feather name="eye" size={12} color="#C8A96B" />
-                <Text style={styles.guestBadgeText}>Invitado</Text>
-              </View>
-            )}
             <TouchableOpacity style={styles.avatarBtn} onPress={() => router.push('/(main)/(tabs)/profile')}>
               <Text style={styles.avatarText}>{displayName[0].toUpperCase()}</Text>
             </TouchableOpacity>
@@ -241,18 +235,6 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
   headerSubtitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: -0.5, lineHeight: 28 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  guestBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(200,169,107,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(200,169,107,0.3)',
-  },
-  guestBadgeText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: '#C8A96B' },
   avatarBtn: {
     width: 40,
     height: 40,

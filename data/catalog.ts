@@ -58,6 +58,15 @@ export const CATEGORIES: Category[] = [
     routeTitle: 'Playas y frente al mar',
     routeSubtitle: 'Propiedades costeras exclusivas',
   },
+  {
+    slug: 'cenote',
+    label: 'Cenotes',
+    icon: 'droplet',
+    image: Images.terreno,
+    count: 0,
+    routeTitle: 'Terrenos con cenote',
+    routeSubtitle: 'Propiedades con cenotes naturales y alto potencial turistico',
+  },
 ];
 
 export const BUDGET_OPTIONS: { id: BudgetRange; label: string; min: number | null; max: number | null }[] = [

@@ -1,7 +1,7 @@
 import Images from '@/constants/images';
 
 import type { Property } from '@/data/catalog';
-import type { ImageAsset, LegalStatus, PropertyCategory } from '@/data/types';
+import type { ImageAsset, LegalStatus, OperationType, PropertyCategory } from '@/data/types';
 
 const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
   terreno: Images.terreno,
@@ -9,6 +9,7 @@ const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
   edificio: Images.edificio,
   hotel: Images.hotel,
   playa: Images.terreno,
+  cenote: Images.terreno,
 };
 
 const LEGAL_LABELS: Record<LegalStatus, string> = {
@@ -24,7 +25,7 @@ export interface DbProperty {
   title: string;
   description: string | null;
   category: PropertyCategory;
-  operation_type: 'venta' | 'renta';
+  operation_type: OperationType;
   price: number;
   currency: string | null;
   location: string | null;
@@ -40,6 +41,12 @@ export interface DbProperty {
   legal_status: LegalStatus;
   status: string;
   featured: boolean | null;
+  has_public_deed?: boolean | null;
+  has_no_lien_certificate?: boolean | null;
+  has_cadastral_certificate?: boolean | null;
+  has_plans?: boolean | null;
+  seller_registry_type?: 'ampi' | 'sedetus' | null;
+  seller_registry_number?: string | null;
 }
 
 function toImageSource(url: string | undefined, category: PropertyCategory): ImageAsset {
@@ -86,6 +93,12 @@ export function mapDbProperty(row: DbProperty): Property {
     status_legacy: row.operation_type,
     featured: Boolean(row.featured),
     verified: row.legal_status === 'verificada',
+    has_public_deed: Boolean(row.has_public_deed),
+    has_no_lien_certificate: Boolean(row.has_no_lien_certificate),
+    has_cadastral_certificate: Boolean(row.has_cadastral_certificate),
+    has_plans: Boolean(row.has_plans),
+    seller_registry_type: row.seller_registry_type ?? undefined,
+    seller_registry_number: row.seller_registry_number ?? undefined,
     created_at: '',
     updated_at: '',
   };

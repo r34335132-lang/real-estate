@@ -1,94 +1,43 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { budgetFromRange } from '@/data/catalog';
 import {
   clearAuthSession,
+  restoreSession,
   signInWithEmail,
   signUpWithEmail,
 } from '@/data/services/authService';
 import { fetchFavoriteIds, toggleFavoriteDb } from '@/data/services/favoriteService';
 import { fetchPreferences, savePreferences } from '@/data/services/preferenceService';
 import { User, UserPreferences, UserRole } from '@/data/types';
-import {
-  AUTH_STORAGE_KEYS,
-  type AuthIntent,
-  clearAuthIntent,
-  migrateAuthStorageIfNeeded,
-} from '@/lib/authStorage';
+import { AUTH_STORAGE_KEYS, clearLegacyAuthStorage, migrateAuthStorageIfNeeded } from '@/lib/authStorage';
 import { useSupabase } from '@/lib/env';
 
-interface GuestGateConfig {
-  visible: boolean;
-  title: string;
-  message: string;
-  actionLabel?: string;
-}
-
-export type SessionKind = 'none' | 'guest' | 'user';
+export type SessionKind = 'none' | 'user';
 
 interface AppContextType {
   role: UserRole;
   user: User | null;
   sessionKind: SessionKind;
   isAuthenticated: boolean;
-  isGuest: boolean;
   preferences: UserPreferences | null;
   hasCompletedOnboarding: boolean;
   favorites: string[];
-  guestGate: GuestGateConfig;
   authLoading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<string | null>;
-  loginAsGuest: () => Promise<string | null>;
   logout: () => Promise<void>;
-  exitGuestToAuth: (intent: AuthIntent) => Promise<void>;
   setPreferences: (prefs: Omit<UserPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   toggleFavorite: (id: string) => Promise<boolean>;
   isFavorite: (id: string) => boolean;
   requireAuth: (action: 'contact' | 'favorite' | 'appointment' | 'save') => boolean;
-  showGuestGate: (action: 'contact' | 'favorite' | 'appointment' | 'save') => void;
-  hideGuestGate: () => void;
   refreshFavorites: () => Promise<void>;
 }
 
-const GUEST_MESSAGES: Record<string, { title: string; message: string }> = {
-  contact: {
-    title: 'Crea una cuenta para contactar',
-    message: 'Regístrate o inicia sesión para contactar a este broker y recibir asesoría personalizada.',
-  },
-  favorite: {
-    title: 'Inicia sesión para guardar',
-    message: 'Guarda tus propiedades favoritas y accede a ellas desde cualquier dispositivo.',
-  },
-  appointment: {
-    title: 'Agenda tu visita',
-    message: 'Crea una cuenta para agendar visitas y recibir confirmación del broker.',
-  },
-  save: {
-    title: 'Accede a más funciones',
-    message: 'Crea una cuenta para desbloquear todas las funciones de Real Estate JC.',
-  },
-};
-
 const AppContext = createContext<AppContextType>({} as AppContextType);
-
-const LOCAL_SESSION_KEYS = [
-  AUTH_STORAGE_KEYS.guest,
-  AUTH_STORAGE_KEYS.skipRestore,
-  AUTH_STORAGE_KEYS.authIntent,
-  AUTH_STORAGE_KEYS.onboarding,
-  AUTH_STORAGE_KEYS.guestOnboarding,
-  AUTH_STORAGE_KEYS.preferences,
-  AUTH_STORAGE_KEYS.favorites,
-  're_jc_registered_guest_email',
-  're_jc_registered_guest_password',
-];
-
-async function clearLocalSessionStorage() {
-  await AsyncStorage.multiRemove(LOCAL_SESSION_KEYS);
-}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('comprador');
@@ -98,19 +47,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferencesState] = useState<UserPreferences | null>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [guestGate, setGuestGate] = useState<GuestGateConfig>({
-    visible: false,
-    title: '',
-    message: '',
-  });
   const [hydrated, setHydrated] = useState(false);
 
-  const isAuthenticated = sessionKind !== 'none';
-  const isGuest = sessionKind === 'guest';
-
-  const clearPendingAuthIntent = useCallback(async () => {
-    await clearAuthIntent();
-  }, []);
+  const isAuthenticated = sessionKind === 'user';
 
   const resetLocalSession = useCallback(() => {
     setUser(null);
@@ -121,53 +60,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHasCompletedOnboarding(false);
   }, []);
 
-  const applyGuestSession = useCallback(() => {
-    setUser(null);
-    setRole('invitado');
-    setSessionKind('guest');
-    setFavorites([]);
-    setPreferencesState(null);
-    setHasCompletedOnboarding(false);
-  }, []);
-
-  const loadFavorites = useCallback(async (userId: string | null, guest: boolean) => {
-    if (guest || !userId) {
+  const loadFavorites = useCallback(async (userId: string | null) => {
+    if (!userId || !useSupabase()) {
       setFavorites([]);
       return;
     }
-    if (useSupabase()) {
-      try {
-        const ids = await fetchFavoriteIds(userId);
-        setFavorites(ids);
-      } catch {
-        setFavorites([]);
-      }
-    } else {
+
+    try {
+      const ids = await fetchFavoriteIds(userId);
+      setFavorites(ids);
+    } catch {
       setFavorites([]);
     }
   }, []);
 
   const applyUser = useCallback(
-    async (u: User, guest = false) => {
-      await loadFavorites(guest ? null : u.id, guest);
+    async (u: User) => {
+      await loadFavorites(u.id);
 
       let onboarded = false;
-
-      if (guest) {
-        onboarded = false;
-      } else if (useSupabase()) {
+      if (useSupabase()) {
         const prefs = await fetchPreferences(u.id);
         if (prefs) {
           setPreferencesState(prefs);
           onboarded = true;
-        } else {
-          onboarded = false;
         }
       }
 
       setUser(u);
       setRole(u.role);
-      setSessionKind(guest ? 'guest' : 'user');
+      setSessionKind('user');
       setHasCompletedOnboarding(onboarded);
     },
     [loadFavorites],
@@ -180,13 +102,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await migrateAuthStorageIfNeeded();
 
-        await clearLocalSessionStorage();
-
-        await clearAuthSession();
-
-        if (!cancelled) {
-          resetLocalSession();
+        if (useSupabase()) {
+          const profile = await restoreSession();
+          if (!cancelled && profile) {
+            await applyUser(profile);
+            return;
+          }
         }
+
+        if (!cancelled) resetLocalSession();
       } finally {
         if (!cancelled) {
           setAuthLoading(false);
@@ -198,35 +122,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applyUser, clearPendingAuthIntent, resetLocalSession]);
-
-  const exitGuestToAuth = useCallback(
-    async (_intent: AuthIntent) => {
-      try {
-        resetLocalSession();
-        await clearPendingAuthIntent();
-        await clearLocalSessionStorage();
-        resetLocalSession();
-        await clearAuthSession();
-        resetLocalSession();
-      } finally {
-        setAuthLoading(false);
-      }
-    },
-    [clearPendingAuthIntent, resetLocalSession],
-  );
+  }, [applyUser, resetLocalSession]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
       const { user: u, error } = await signInWithEmail(email, password);
-      if (error || !u) return error ?? 'Error al iniciar sesión';
+      if (error || !u) return error ?? 'Error al iniciar sesion';
 
-      await clearLocalSessionStorage();
-      await clearPendingAuthIntent();
+      await clearLegacyAuthStorage();
       await applyUser(u);
       return null;
     },
-    [applyUser, clearPendingAuthIntent],
+    [applyUser],
   );
 
   const signUp = useCallback(
@@ -234,116 +141,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { user: u, error } = await signUpWithEmail(email, password, fullName, selectedRole);
       if (error || !u) return error ?? 'Error al registrarse';
 
-      await clearLocalSessionStorage();
+      await clearLegacyAuthStorage();
       setHasCompletedOnboarding(false);
-      await clearPendingAuthIntent();
       await applyUser(u);
       return null;
     },
-    [applyUser, clearPendingAuthIntent],
+    [applyUser],
   );
-
-  const loginAsGuest = useCallback(async () => {
-    try {
-      resetLocalSession();
-      await clearPendingAuthIntent();
-      await clearLocalSessionStorage();
-      await clearAuthSession();
-      applyGuestSession();
-      return null;
-    } finally {
-      setAuthLoading(false);
-    }
-  }, [applyGuestSession, clearPendingAuthIntent, resetLocalSession]);
 
   const logout = useCallback(async () => {
     try {
-      resetLocalSession();
-      await clearPendingAuthIntent();
-      await clearLocalSessionStorage();
       await clearAuthSession();
+      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.onboarding);
       resetLocalSession();
     } finally {
       setAuthLoading(false);
     }
-  }, [clearPendingAuthIntent, resetLocalSession]);
+  }, [resetLocalSession]);
 
   const completeOnboarding = useCallback(async () => {
     setHasCompletedOnboarding(true);
+    await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
   }, []);
 
   const setPreferences = useCallback(
     async (prefs: Omit<UserPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+      if (!user) return;
+
       const budget = prefs.budget_range
         ? budgetFromRange(prefs.budget_range)
         : { min: prefs.budget_min, max: prefs.budget_max };
 
       const payload = { ...prefs, budget_min: budget.min, budget_max: budget.max };
 
-      let full: UserPreferences;
-      if (user && sessionKind === 'user' && useSupabase()) {
-        full = await savePreferences(user.id, payload);
-      } else {
-        full = {
-          id: 'pref-local',
-          user_id: user?.id ?? 'local',
-          ...payload,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      }
+      const full =
+        useSupabase()
+          ? await savePreferences(user.id, payload)
+          : {
+              id: 'pref-local',
+              user_id: user.id,
+              ...payload,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
 
       setPreferencesState(full);
     },
-    [user, sessionKind],
+    [user],
   );
 
-  const showGuestGate = useCallback((action: 'contact' | 'favorite' | 'appointment' | 'save') => {
-    const msg = GUEST_MESSAGES[action];
-    setGuestGate({ visible: true, ...msg, actionLabel: 'Crear cuenta' });
-  }, []);
-
-  const hideGuestGate = useCallback(() => {
-    setGuestGate((g) => ({ ...g, visible: false }));
-  }, []);
-
   const requireAuth = useCallback(
-    (action: 'contact' | 'favorite' | 'appointment' | 'save') => {
-      if (isGuest) {
-        showGuestGate(action);
+    (_action: 'contact' | 'favorite' | 'appointment' | 'save') => {
+      if (!user || sessionKind !== 'user') {
+        Alert.alert('Inicia sesion', 'Necesitas iniciar sesion o crear una cuenta para continuar.');
         return false;
       }
       return true;
     },
-    [isGuest, showGuestGate],
+    [sessionKind, user],
   );
 
   const toggleFavorite = useCallback(
     async (id: string) => {
-      if (!requireAuth('favorite')) return false;
+      if (!requireAuth('favorite') || !user) return false;
 
-      if (user && useSupabase() && sessionKind === 'user') {
+      if (useSupabase()) {
         const added = await toggleFavoriteDb(user.id, id);
         setFavorites((prev) => (added ? [...prev, id] : prev.filter((f) => f !== id)));
         return added;
       }
 
-      let added = false;
-      setFavorites((prev) => {
-        const next = prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id];
-        added = !prev.includes(id);
-        return next;
-      });
-      return added;
+      return false;
     },
-    [requireAuth, user, sessionKind],
+    [requireAuth, user],
   );
 
   const isFavorite = useCallback((id: string) => favorites.includes(id), [favorites]);
 
   const refreshFavorites = useCallback(async () => {
-    if (user) await loadFavorites(isGuest ? null : user.id, isGuest);
-  }, [user, isGuest, loadFavorites]);
+    if (user) await loadFavorites(user.id);
+  }, [loadFavorites, user]);
 
   if (!hydrated) return null;
 
@@ -354,24 +231,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user,
         sessionKind,
         isAuthenticated,
-        isGuest,
         preferences,
         hasCompletedOnboarding,
         favorites,
-        guestGate,
         authLoading,
         signIn,
         signUp,
-        loginAsGuest,
         logout,
-        exitGuestToAuth,
         setPreferences,
         completeOnboarding,
         toggleFavorite,
         isFavorite,
         requireAuth,
-        showGuestGate,
-        hideGuestGate,
         refreshFavorites,
       }}
     >

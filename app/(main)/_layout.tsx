@@ -1,11 +1,18 @@
-import { Stack } from 'expo-router';
-import React from 'react';
+import { router, Stack, usePathname } from 'expo-router';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useApp } from '@/context/AppContext';
 
 export default function MainLayout() {
-  const { authLoading } = useApp();
+  const { authLoading, sessionKind } = useApp();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!authLoading && sessionKind === 'none' && pathname !== '/') {
+      router.replace('/');
+    }
+  }, [authLoading, pathname, sessionKind]);
 
   if (authLoading) {
     return (
@@ -14,6 +21,8 @@ export default function MainLayout() {
       </View>
     );
   }
+
+  if (sessionKind === 'none') return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

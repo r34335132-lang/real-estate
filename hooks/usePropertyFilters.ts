@@ -3,6 +3,14 @@ import { useMemo, useState } from 'react';
 import { LegalStatus, OperationType, PropertyCategory } from '@/data/types';
 import type { Property } from '@/data/catalog';
 
+const OPERATION_LABELS: Record<OperationType, string> = {
+  compra: 'Compra',
+  venta: 'Venta',
+  renta: 'Renta',
+  permuta: 'Permuta',
+  asesoria: 'Asesoria',
+};
+
 export interface PropertyFilters {
   category?: PropertyCategory;
   location: string;
@@ -46,7 +54,7 @@ export function usePropertyFilters(initialCategory?: PropertyCategory, source?: 
   const activeChips = useMemo(() => {
     const chips: { key: string; label: string }[] = [];
     if (filters.operationType !== 'all') {
-      chips.push({ key: 'operationType', label: filters.operationType === 'venta' ? 'Venta' : 'Renta' });
+      chips.push({ key: 'operationType', label: OPERATION_LABELS[filters.operationType] });
     }
     if (filters.legalStatus !== 'all') {
       const labels: Record<LegalStatus, string> = {

@@ -14,7 +14,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { GuestGateModal } from '@/components/GuestGateModal';
 import { AppProvider } from '@/context/AppContext';
 
 SplashScreen.preventAutoHideAsync();
@@ -49,7 +48,6 @@ export default function RootLayout() {
                   <Stack.Screen name="(main)" />
                   <Stack.Screen name="+not-found" />
                 </Stack>
-                <GuestGateModal />
               </KeyboardProvider>
             </GestureHandlerRootView>
           </AppProvider>

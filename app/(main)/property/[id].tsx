@@ -24,9 +24,17 @@ import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
 import { formatPrice } from '@/data/catalog';
 import { fetchBrokerById } from '@/data/services/brokerService';
+import type { OperationType } from '@/data/types';
 
 const { width, height } = Dimensions.get('window');
 const IMAGE_HEIGHT = height * 0.42;
+const OPERATION_LABELS: Record<OperationType, string> = {
+  compra: 'Compra',
+  venta: 'Venta',
+  renta: 'Renta',
+  permuta: 'Permuta',
+  asesoria: 'Asesoria',
+};
 
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -128,7 +136,7 @@ export default function PropertyDetailScreen() {
         <View style={styles.priceRow}>
           <View>
             <Text style={[styles.price, { color: '#0F6BFF' }]}>{formatPrice(property.price)}</Text>
-            <Text style={[styles.priceUnit, { color: colors.mutedForeground }]}>MXN · {property.status === 'venta' ? 'En Venta' : 'En Renta'}</Text>
+            <Text style={[styles.priceUnit, { color: colors.mutedForeground }]}>MXN · {OPERATION_LABELS[property.operation_type]}</Text>
           </View>
           {property.verified && (
             <View style={styles.legalBadge}>
