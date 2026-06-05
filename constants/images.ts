@@ -5,6 +5,8 @@ const Images = {
   casa: require('../assets/images/casa_lujo.png'),
   edificio: require('../assets/images/edificio_comercial.png'),
   hotel: require('../assets/images/hotel_boutique.png'),
+  playa: require('../assets/images/playa_mexico.jpg'),
+  cenote: require('../assets/images/cenote_yucatan.jpg'),
   broker1: require('../assets/images/broker1.png'),
   broker2: require('../assets/images/broker2.png'),
 };

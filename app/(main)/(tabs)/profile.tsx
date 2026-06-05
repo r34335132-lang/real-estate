@@ -50,7 +50,9 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    console.log('[auth] profile:logout-press');
     await logout();
+    console.log('[auth] profile:logout-resolved');
   };
 
   const handleDeleteRequest = () => {
@@ -181,7 +183,7 @@ export default function ProfileScreen() {
                     { icon: 'heart' as const, label: 'Favoritos', color: '#EF4444' },
                     { icon: 'calendar' as const, label: 'Citas', color: '#0F6BFF' },
                     { icon: 'sliders' as const, label: 'Preferencias', color: '#22C55E', route: '/onboarding' },
-                    { icon: 'star' as const, label: 'Recomendados', color: '#C8A96B', route: '/(main)/(tabs)' },
+                    { icon: 'star' as const, label: 'Recomendados', color: '#C8A96B', route: '/(main)/(tabs)/home' },
                   ]
           ).map((action, i) => (
             <TouchableOpacity

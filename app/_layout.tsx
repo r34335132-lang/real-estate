@@ -25,10 +25,17 @@ function AuthRedirector() {
   const pathname = usePathname();
 
   useEffect(() => {
+    console.log('[nav] root:auth-state', { authLoading, sessionKind, pathname });
     if (authLoading) return;
     if (sessionKind === 'none' && pathname !== '/' && pathname !== '/privacy' && pathname !== '/terms') {
-      router.replace('/');
+      console.log('[nav] root:redirect-to-welcome:scheduled', { pathname });
+      const redirect = setTimeout(() => {
+        console.log('[nav] root:redirect-to-welcome:run');
+        router.replace('/');
+      }, 0);
+      return () => clearTimeout(redirect);
     }
+    return undefined;
   }, [authLoading, pathname, sessionKind]);
 
   return null;

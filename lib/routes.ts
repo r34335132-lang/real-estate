@@ -4,7 +4,7 @@ import type { Href } from 'expo-router';
 export const routes = {
   welcome: '/' as Href,
   onboarding: '/(main)/onboarding' as Href,
-  tabs: '/(main)/(tabs)' as Href,
+  tabs: '/(main)/(tabs)/home' as Href,
   profile: '/(main)/(tabs)/profile' as Href,
   categories: '/(main)/(tabs)/categories' as Href,
   legal: '/(main)/(tabs)/legal' as Href,

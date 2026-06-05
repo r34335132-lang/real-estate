@@ -8,8 +8,8 @@ const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
   casa: Images.casa,
   edificio: Images.edificio,
   hotel: Images.hotel,
-  playa: Images.terreno,
-  cenote: Images.terreno,
+  playa: Images.playa,
+  cenote: Images.cenote,
 };
 
 const LEGAL_LABELS: Record<LegalStatus, string> = {

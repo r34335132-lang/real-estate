@@ -12,7 +12,7 @@ import { useColors } from '@/hooks/useColors';
 function NativeTabLayout() {
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="home">
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Inicio</Label>
       </NativeTabs.Trigger>
@@ -44,6 +44,7 @@ function ClassicTabLayout() {
 
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         tabBarActiveTintColor: '#0F6BFF',
         tabBarInactiveTintColor: '#8B9CB0',
@@ -76,7 +77,7 @@ function ClassicTabLayout() {
         },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Inicio', tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} /> }} />
+      <Tabs.Screen name="home" options={{ title: 'Inicio', tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} /> }} />
       <Tabs.Screen name="categories" options={{ title: 'Categorías', tabBarIcon: ({ color }) => <Feather name="grid" size={22} color={color} /> }} />
       <Tabs.Screen
         name="publish"
@@ -96,9 +97,10 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  const { authLoading } = useApp();
+  const { authLoading, sessionKind } = useApp();
+  console.log('[nav] tabs-layout:render', { authLoading, sessionKind });
 
-  if (authLoading) {
+  if (authLoading || sessionKind === 'none') {
     return (
       <View style={{ flex: 1, backgroundColor: '#071B33', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#0F6BFF" />

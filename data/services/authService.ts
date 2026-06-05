@@ -54,19 +54,27 @@ function profileDraftFromAuthUser(authUser: AuthUser) {
 }
 
 export async function clearAuthSession(): Promise<void> {
-  if (!useSupabase()) return;
+  console.log('[auth] clearAuthSession:start', { supabase: useSupabase() });
+  if (!useSupabase()) {
+    console.log('[auth] clearAuthSession:skip-supabase');
+    return;
+  }
   const supabase = getSupabase();
   try {
-    await withTimeout(supabase.auth.signOut({ scope: 'global' }));
-  } catch {
-    /* ignore */
+    const result = await withTimeout(supabase.auth.signOut({ scope: 'global' }));
+    console.log('[auth] clearAuthSession:global-signout', { timedOut: result === null });
+  } catch (error) {
+    console.log('[auth] clearAuthSession:global-signout-error', error);
   }
   try {
-    await withTimeout(supabase.auth.signOut({ scope: 'local' }));
-  } catch {
-    /* ignore */
+    const result = await withTimeout(supabase.auth.signOut({ scope: 'local' }));
+    console.log('[auth] clearAuthSession:local-signout', { timedOut: result === null });
+  } catch (error) {
+    console.log('[auth] clearAuthSession:local-signout-error', error);
   }
+  console.log('[auth] clearAuthSession:clear-storage:start');
   await clearSupabaseAuthStorage();
+  console.log('[auth] clearAuthSession:done');
 }
 
 /** Solo consulta `public.users` (espera al trigger en signUp, sin crear filas). */

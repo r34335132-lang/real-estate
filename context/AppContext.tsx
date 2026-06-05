@@ -52,6 +52,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = sessionKind === 'user';
 
   const resetLocalSession = useCallback(() => {
+    console.log('[auth] resetLocalSession');
     setUser(null);
     setRole('buyer');
     setSessionKind('none');
@@ -150,14 +151,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    console.log('[auth] logout:start', { sessionKind, userId: user?.id });
+    setAuthLoading(true);
     try {
       await clearAuthSession();
+      console.log('[auth] logout:clearAuthSession:done');
       await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.onboarding);
+      console.log('[auth] logout:onboarding-removed');
+      resetLocalSession();
+      console.log('[auth] logout:resetLocalSession:done');
+    } catch (error) {
+      console.log('[auth] logout:error', error);
       resetLocalSession();
     } finally {
       setAuthLoading(false);
+      console.log('[auth] logout:finish');
     }
-  }, [resetLocalSession]);
+  }, [resetLocalSession, sessionKind, user?.id]);
 
   const completeOnboarding = useCallback(async () => {
     setHasCompletedOnboarding(true);
