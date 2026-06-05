@@ -6,7 +6,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,11 +14,25 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { AppProvider } from '@/context/AppContext';
+import { AppProvider, useApp } from '@/context/AppContext';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+function AuthRedirector() {
+  const { authLoading, sessionKind } = useApp();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (sessionKind === 'none' && pathname !== '/') {
+      router.replace('/');
+    }
+  }, [authLoading, pathname, sessionKind]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -43,6 +57,7 @@ export default function RootLayout() {
           <AppProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
+                <AuthRedirector />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(main)" />
