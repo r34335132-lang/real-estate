@@ -5,6 +5,7 @@ import type { ImageAsset, LegalStatus, OperationType, PropertyCategory, Publicat
 
 const CATEGORY_FALLBACK: Record<PropertyCategory, ImageAsset> = {
   terreno: Images.terreno,
+  ejidal: Images.ejidal,
   casa: Images.casa,
   edificio: Images.edificio,
   hotel: Images.hotel,

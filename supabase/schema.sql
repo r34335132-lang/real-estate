@@ -9,7 +9,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE property_category AS ENUM ('terreno', 'casa', 'edificio', 'hotel', 'playa', 'cenote');
+  CREATE TYPE property_category AS ENUM ('terreno', 'ejidal', 'casa', 'edificio', 'hotel', 'playa', 'cenote');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

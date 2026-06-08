@@ -23,6 +23,15 @@ export const CATEGORIES: Category[] = [
     routeSubtitle: 'Lotes y terrenos premium en México',
   },
   {
+    slug: 'ejidal',
+    label: 'Ejidales',
+    icon: 'map-pin',
+    image: Images.ejidal,
+    count: 0,
+    routeTitle: 'Terrenos ejidales',
+    routeSubtitle: 'Propiedades ejidales sujetas a revision documental y disponibilidad',
+  },
+  {
     slug: 'casa',
     label: 'Casas',
     icon: 'home',

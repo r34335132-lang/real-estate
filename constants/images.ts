@@ -1,7 +1,8 @@
 const Images = {
   icon: require('../assets/images/icon.png'),
   hero: require('../assets/images/hero_property.png'),
-  terreno: require('../assets/images/terreno_playa.png'),
+  terreno: require('../assets/images/terreno_mexico.jpg'),
+  ejidal: require('../assets/images/ejidal_tocuila.jpg'),
   casa: require('../assets/images/casa_lujo.png'),
   edificio: require('../assets/images/edificio_comercial.png'),
   hotel: require('../assets/images/hotel_boutique.png'),

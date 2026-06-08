@@ -6,7 +6,7 @@ export type ImageAsset = ImageSourcePropType;
 
 export type UserRole = 'admin' | 'broker' | 'buyer';
 
-export type PropertyCategory = 'terreno' | 'casa' | 'edificio' | 'hotel' | 'playa' | 'cenote';
+export type PropertyCategory = 'terreno' | 'ejidal' | 'casa' | 'edificio' | 'hotel' | 'playa' | 'cenote';
 export type OperationType = 'compra' | 'venta' | 'renta' | 'permuta' | 'asesoria';
 export type LegalStatus = 'pendiente' | 'en_revision' | 'verificada' | 'rechazada';
 export type PropertyListingStatus = 'activa' | 'vendida' | 'pausada';

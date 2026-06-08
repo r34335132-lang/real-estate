@@ -9,8 +9,11 @@ import { fetchPendingBrokerProfiles, updateBrokerVerificationStatus } from '@/da
 import { fetchPendingReviewProperties, updatePropertyPublicationStatus } from '@/data/services/propertyService';
 import type { BrokerProfile } from '@/data/types';
 import type { Property } from '@/data/catalog';
+import { useSupabase } from '@/lib/env';
+import { getSupabase } from '@/lib/supabase';
 
 interface LegalOption {
+  requestType: string;
   icon: keyof typeof Feather.glyphMap;
   title: string;
   description: string;
@@ -27,40 +30,46 @@ interface ScopeModule {
 
 const OPTIONS: LegalOption[] = [
   {
+    requestType: 'solicitud_documento',
     icon: 'file-text',
-    title: 'Generar Contrato',
+    title: 'Solicitud de documento',
     description: 'Plantillas y documentos operativos sujetos a revision profesional externa.',
     color: '#0F6BFF',
     badge: 'Nuevo',
   },
   {
+    requestType: 'revision_documental',
     icon: 'check-circle',
     title: 'Revisar documentacion',
     description: 'Revision administrativa de documentos cargados por el vendedor.',
     color: '#22C55E',
   },
   {
+    requestType: 'orientacion_firma',
     icon: 'edit-3',
-    title: 'Firma Electrónica',
+    title: 'Orientacion sobre firma',
     description: 'Flujo de firma sujeto a los proveedores y requisitos aplicables.',
     color: '#C8A96B',
   },
   {
+    requestType: 'contacto_especializado',
     icon: 'users',
     title: 'Contacto especializado',
     description: 'Contacto con profesionales externos cuando el usuario lo solicite.',
     color: '#A78BFA',
   },
   {
+    requestType: 'revision_publicacion',
     icon: 'search',
     title: 'Revision de documentos',
     description: 'Revision administrativa de documentos cargados para decidir si una propiedad puede publicarse.',
     color: '#F472B6',
   },
   {
+    requestType: 'informacion_fideicomiso',
     icon: 'lock',
-    title: 'Fideicomiso',
-    description: 'Constitución y gestión de fideicomisos para extranjeros y zonas restringidas.',
+    title: 'Informacion sobre fideicomiso',
+    description: 'Informacion general sujeta a revision con profesionales e instituciones competentes.',
     color: '#34D399',
   },
 ];
@@ -68,7 +77,7 @@ const OPTIONS: LegalOption[] = [
 const TRUST_POINTS = [
   'Experiencia operativa en publicacion inmobiliaria',
   'Red de contactos profesionales externos',
-  'Revisión en menos de 48 horas',
+  'Tiempo estimado sujeto a disponibilidad',
   'Documentos sujetos a revision de profesionales competentes',
 ];
 
@@ -94,15 +103,15 @@ const SCOPE_MODULES: ScopeModule[] = [
   {
     icon: 'briefcase',
     title: 'Docs',
-    description: 'Documentos digitales, validación de propiedades y herramientas jurídicas para abogados.',
-    items: ['Documentos digitales', 'Validación', 'Herramientas jurídicas'],
+    description: 'Documentos digitales, revision administrativa y herramientas informativas.',
+    items: ['Documentos digitales', 'Revision', 'Herramientas informativas'],
   },
 ];
 
 export default function LegalScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { role } = useApp();
+  const { role, user } = useApp();
   const [brokers, setBrokers] = useState<BrokerProfile[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
@@ -143,6 +152,27 @@ export default function LegalScreen() {
       await loadAdminReview();
     } catch {
       Alert.alert('Error', 'No se pudo actualizar la propiedad.');
+    }
+  };
+
+  const handleLegalOptionPress = async (option: Pick<LegalOption, 'requestType' | 'title'>) => {
+    try {
+      if (user && useSupabase()) {
+        const { error } = await getSupabase().from('legal_requests').insert({
+          user_id: user.id,
+          request_type: option.requestType,
+          status: 'pendiente',
+          notes: `Solicitud desde la app: ${option.title}`,
+        });
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.log('[legal] request:create-error', error);
+    } finally {
+      Alert.alert(
+        'Solicitud recibida',
+        'Un asesor se pondra en contacto contigo sujeto a disponibilidad.',
+      );
     }
   };
 
@@ -225,7 +255,7 @@ export default function LegalScreen() {
         <View style={styles.trustBanner}>
           <Text style={styles.trustTitle}>Informacion para decidir</Text>
           <Text style={styles.trustSubtitle}>
-            Todas las propiedades de JC cuentan con revision administrativa. Revisa la informacion y realiza tu propia debida diligencia antes de tomar decisiones.
+            Las propiedades publicadas pueden estar sujetas a revision administrativa. La app no sustituye notario, abogado, autoridad registral, institucion financiera ni asesoria profesional. Revisa la informacion y realiza tu propia debida diligencia antes de decidir.
           </Text>
           <View style={styles.trustPoints}>
             {TRUST_POINTS.map((point, i) => (
@@ -244,6 +274,7 @@ export default function LegalScreen() {
             <TouchableOpacity
               key={i}
               style={[styles.optionCard, { backgroundColor: colors.card }]}
+              onPress={() => void handleLegalOptionPress(opt)}
               activeOpacity={0.85}
             >
               <View style={[styles.optionIcon, { backgroundColor: `${opt.color}18` }]}>
@@ -287,7 +318,16 @@ export default function LegalScreen() {
         </View>
 
         {/* Contact Banner */}
-        <TouchableOpacity style={styles.contactBanner} activeOpacity={0.88}>
+        <TouchableOpacity
+          style={styles.contactBanner}
+          onPress={() =>
+            void handleLegalOptionPress({
+              requestType: 'contacto_especializado',
+              title: 'Contacto especializado',
+            })
+          }
+          activeOpacity={0.88}
+        >
           <View style={styles.contactLeft}>
             <Feather name="phone" size={20} color="#C8A96B" />
             <View>

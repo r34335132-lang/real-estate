@@ -31,6 +31,7 @@ import { pickAndUploadImage } from '@/lib/storage';
 
 const CATEGORY_OPTIONS: { slug: PropertyCategory; label: string }[] = [
   { slug: 'terreno', label: 'Terreno' },
+  { slug: 'ejidal', label: 'Ejidal' },
   { slug: 'casa', label: 'Casa' },
   { slug: 'edificio', label: 'Edificio' },
   { slug: 'hotel', label: 'Hotel' },
