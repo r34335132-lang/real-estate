@@ -115,6 +115,7 @@ export function mapDbProperty(row: DbProperty): Property {
 
 export interface DbBroker {
   id: string;
+  full_name?: string | null;
   company_name: string | null;
   professional_title: string | null;
   bio: string | null;
@@ -133,10 +134,10 @@ export interface DbBroker {
   avatar_url: string | null;
 }
 
-export function mapDbBroker(row: DbBroker, displayName: string) {
+export function mapDbBroker(row: DbBroker, displayName = 'Broker JC') {
   return {
     id: row.id,
-    name: displayName,
+    name: row.full_name || displayName,
     title: row.professional_title ?? 'Broker',
     company: row.company_name ?? 'JC Real Estate Group',
     specialty: row.specialties?.[0] ?? '',

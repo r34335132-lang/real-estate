@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -24,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { PropertyCard } from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
+import { openContactWhatsApp } from '@/lib/support';
 
 const { width } = Dimensions.get('window');
 
@@ -148,7 +148,9 @@ export default function BrokerProfileScreen() {
               style={[styles.contactBtn, { backgroundColor: '#0F6BFF', flex: 2 }]}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                Alert.alert('Contactar', `Llamando a ${broker.name}...`);
+                void openContactWhatsApp(
+                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                );
               }}
               activeOpacity={0.85}
             >
@@ -159,7 +161,9 @@ export default function BrokerProfileScreen() {
               style={[styles.contactBtn, { backgroundColor: '#22C55E', flex: 2 }]}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                Alert.alert('WhatsApp', `Enviando mensaje a ${broker.whatsapp ?? broker.name}`);
+                void openContactWhatsApp(
+                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                );
               }}
               activeOpacity={0.85}
             >
@@ -171,7 +175,9 @@ export default function BrokerProfileScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                Alert.alert('Correo', `Enviando correo a ${broker.email}`);
+                void openContactWhatsApp(
+                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                );
               }}
             >
               <Feather name="mail" size={18} color={colors.foreground} />

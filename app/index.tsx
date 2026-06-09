@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StatusBar,
@@ -108,18 +109,23 @@ export default function WelcomeScreen() {
       <Image source={Images.hero} style={styles.bgImage} resizeMode="cover" />
       <View style={styles.bgOverlay} />
 
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 40),
-            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 24),
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.logoSection}>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 24),
+              paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16),
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+        <View style={[styles.logoSection, mode !== 'welcome' && styles.logoSectionForm]}>
           <View style={styles.logoMark}>
             <Text style={styles.logoMarkText}>JC</Text>
           </View>
@@ -144,7 +150,13 @@ export default function WelcomeScreen() {
         )}
 
         {(mode === 'login' || mode === 'register') && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formSection}>
+          <ScrollView
+            style={styles.formScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            contentContainerStyle={styles.formSection}
+          >
             <TouchableOpacity style={styles.formBack} onPress={() => { setMode('welcome'); setError(null); }}>
               <Feather name="arrow-left" size={18} color="rgba(255,255,255,0.7)" />
               <Text style={styles.formBackText}>Volver</Text>
@@ -234,18 +246,21 @@ export default function WelcomeScreen() {
             <Text style={styles.termsLink}>Politica de Privacidad</Text>
           </TouchableOpacity>
         </View>
-      </Animated.View>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#071B33' },
+  keyboardContainer: { flex: 1 },
   centered: { alignItems: 'center', justifyContent: 'center' },
   bgImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(7,27,51,0.88)' },
   content: { flex: 1, paddingHorizontal: 24 },
   logoSection: { alignItems: 'center', paddingTop: 8, marginBottom: 16 },
+  logoSectionForm: { marginBottom: 8 },
   logoMark: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#0F6BFF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   logoMarkText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: '#fff' },
   logoTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 3, marginBottom: 8 },
@@ -254,7 +269,8 @@ const styles = StyleSheet.create({
   footer: { gap: 10, marginTop: 12 },
   registerBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   registerText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.85)' },
-  formSection: { gap: 12, paddingBottom: 12 },
+  formScroll: { flex: 1 },
+  formSection: { gap: 12, paddingBottom: 140 },
   formBack: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   formBackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.7)' },
   formTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: '#fff' },

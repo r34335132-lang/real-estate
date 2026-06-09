@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/hooks/useColors';
@@ -11,6 +12,7 @@ import type { BrokerProfile } from '@/data/types';
 import type { Property } from '@/data/catalog';
 import { useSupabase } from '@/lib/env';
 import { getSupabase } from '@/lib/supabase';
+import { openContactWhatsApp } from '@/lib/support';
 
 interface LegalOption {
   requestType: string;
@@ -126,33 +128,23 @@ export default function LegalScreen() {
       ]);
       setBrokers(brokerRows);
       setProperties(propertyRows);
-    } catch {
-      Alert.alert('Error', 'No se pudo cargar el panel de revision.');
     } finally {
       setLoadingAdmin(false);
     }
   };
 
   useEffect(() => {
-    loadAdminReview();
+    void loadAdminReview();
   }, [role]);
 
   const handleBrokerDecision = async (brokerId: string, approved: boolean) => {
-    try {
-      await updateBrokerVerificationStatus(brokerId, approved ? 'approved' : 'rejected');
-      await loadAdminReview();
-    } catch {
-      Alert.alert('Error', 'No se pudo actualizar el broker.');
-    }
+    await updateBrokerVerificationStatus(brokerId, approved ? 'approved' : 'rejected');
+    await loadAdminReview();
   };
 
   const handlePropertyDecision = async (propertyId: string, published: boolean) => {
-    try {
-      await updatePropertyPublicationStatus(propertyId, published ? 'published' : 'rejected');
-      await loadAdminReview();
-    } catch {
-      Alert.alert('Error', 'No se pudo actualizar la propiedad.');
-    }
+    await updatePropertyPublicationStatus(propertyId, published ? 'published' : 'rejected');
+    await loadAdminReview();
   };
 
   const handleLegalOptionPress = async (option: Pick<LegalOption, 'requestType' | 'title'>) => {
@@ -169,10 +161,7 @@ export default function LegalScreen() {
     } catch (error) {
       console.log('[legal] request:create-error', error);
     } finally {
-      Alert.alert(
-        'Solicitud recibida',
-        'Un asesor se pondra en contacto contigo sujeto a disponibilidad.',
-      );
+      await openContactWhatsApp();
     }
   };
 
@@ -206,6 +195,25 @@ export default function LegalScreen() {
         ]}
       >
         {role === 'admin' && (
+          <TouchableOpacity
+            style={[styles.adminPanel, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push('/(main)/admin' as never)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.adminHeader}>
+              <Feather name="sliders" size={18} color="#C8A96B" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.adminTitle, { color: colors.foreground }]}>Panel admin</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  Gestiona usuarios, brokers y propiedades
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color="#C8A96B" />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {false && role === 'admin' && (
           <View style={[styles.adminPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.adminHeader}>
               <Feather name="sliders" size={18} color="#C8A96B" />

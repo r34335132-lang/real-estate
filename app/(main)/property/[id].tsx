@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -25,6 +24,7 @@ import { useApp } from '@/context/AppContext';
 import { formatPrice } from '@/data/catalog';
 import { fetchBrokerById } from '@/data/services/brokerService';
 import type { OperationType } from '@/data/types';
+import { openContactWhatsApp } from '@/lib/support';
 
 const { width, height } = Dimensions.get('window');
 const IMAGE_HEIGHT = height * 0.42;
@@ -252,7 +252,9 @@ export default function PropertyDetailScreen() {
           style={styles.whatsappBtn}
           onPress={() => {
             if (!requireAuth('contact')) return;
-            Alert.alert('WhatsApp', `Contactando a ${broker?.name ?? 'broker'} por WhatsApp`);
+            void openContactWhatsApp(
+              `Hola, quiero recibir asesoria sobre la propiedad ${property.title}.`,
+            );
           }}
           activeOpacity={0.85}
         >
@@ -263,7 +265,9 @@ export default function PropertyDetailScreen() {
           style={styles.ctaBtn}
           onPress={() => {
             if (!requireAuth('appointment')) return;
-            Alert.alert('Visita Agendada', 'Tu solicitud de visita ha sido enviada. El broker te contactará pronto.');
+            void openContactWhatsApp(
+              `Hola, quiero solicitar una visita para la propiedad ${property.title}.`,
+            );
           }}
           activeOpacity={0.85}
         >

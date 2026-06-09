@@ -3,6 +3,7 @@
     "name": "Real Estate JC",
     "slug": "real-estate-jc",
     "version": "1.0.0",
+    "description": "Publicacion y contacto inmobiliario con revision administrativa de perfiles y propiedades.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "real-estate-jc",
@@ -14,31 +15,42 @@
       "backgroundColor": "#071B33"
     },
     "ios": {
+      "bundleIdentifier": "com.realestatejc.app",
+      "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Usamos tus fotos solo para subir imagenes de propiedades, identificacion del broker y documentos requeridos para revision administrativa.",
         "NSCameraUsageDescription": "Usamos la camara solo para tomar fotos de propiedades, identificacion del broker o documentos requeridos para revision administrativa."
       }
     },
     "android": {
-      "backgroundColor": "#071B33"
+      "package": "com.realestatejc.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#071B33"
+      },
+      "backgroundColor": "#071B33",
+      "softwareKeyboardLayoutMode": "resize",
+      "blockedPermissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font",
       [
         "expo-image-picker",
         {
           "photosPermission": "La app necesita acceso a tus fotos para subir imagenes de propiedades, identificacion del broker y documentos requeridos para revision administrativa.",
-          "cameraPermission": "La app necesita acceso a la camara para tomar fotos de propiedades, identificacion del broker o documentos requeridos para revision administrativa."
+          "cameraPermission": "La app necesita acceso a la camara para tomar fotos de propiedades, identificacion del broker o documentos requeridos para revision administrativa.",
+          "microphonePermission": false
         }
       ],
       "expo-web-browser"
@@ -46,6 +58,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "33ca24e5-d174-4d30-b65a-cfc775404ae5"
+      }
     }
   }
 }

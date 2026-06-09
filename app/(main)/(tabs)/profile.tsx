@@ -167,9 +167,9 @@ export default function ProfileScreen() {
         <View style={styles.actions}>
           {(isAdmin
             ? [
-                { icon: 'users' as const, label: 'Usuarios', color: '#0F6BFF' },
-                { icon: 'home' as const, label: 'Propiedades', color: '#22C55E' },
-                { icon: 'briefcase' as const, label: 'Brokers', color: '#C8A96B' },
+                { icon: 'users' as const, label: 'Usuarios', color: '#0F6BFF', route: '/(main)/admin?view=users' },
+                { icon: 'home' as const, label: 'Propiedades', color: '#22C55E', route: '/(main)/admin?view=properties' },
+                { icon: 'briefcase' as const, label: 'Brokers', color: '#C8A96B', route: '/(main)/admin?view=brokers' },
                 { icon: 'bar-chart-2' as const, label: 'Metricas', color: '#A78BFA' },
               ]
             : isBroker

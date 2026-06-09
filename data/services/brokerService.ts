@@ -12,7 +12,7 @@ const BROKER_NAMES: Record<string, string> = {
 export async function fetchBrokers() {
   if (!useSupabase()) return [];
 
-  const { data, error } = await getSupabase().from('broker_profiles').select('*').order('rating', { ascending: false });
+  const { data, error } = await getSupabase().from('public_broker_profiles').select('*').order('rating', { ascending: false });
   if (error) throw error;
   return (data as DbBroker[]).map((b) => mapDbBroker(b, BROKER_NAMES[b.id] ?? 'Broker JC'));
 }
@@ -20,7 +20,7 @@ export async function fetchBrokers() {
 export async function fetchBrokerById(id: string) {
   if (!useSupabase()) return undefined;
 
-  const { data, error } = await getSupabase().from('broker_profiles').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await getSupabase().from('public_broker_profiles').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return undefined;
   return mapDbBroker(data as DbBroker, BROKER_NAMES[id] ?? 'Broker JC');
