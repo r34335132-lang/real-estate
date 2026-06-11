@@ -32,6 +32,7 @@ export default function MainLayout() {
       <Stack.Screen name="broker/[id]" />
       <Stack.Screen name="category/[slug]" />
       <Stack.Screen name="admin" />
+      <Stack.Screen name="contact" />
     </Stack>
   );
 }

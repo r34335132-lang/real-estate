@@ -6,12 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import Images from '@/constants/images';
+import { deleteCurrentAccount } from '@/data/services/accountService';
 import type { Appointment, LegalRequest } from '@/data/types';
 import type { Property } from '@/data/catalog';
 import { useColors } from '@/hooks/useColors';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from '@/lib/support';
 
 const EMPTY_APPOINTMENTS: Appointment[] = [];
 const EMPTY_LEGAL_REQUESTS: LegalRequest[] = [];
@@ -22,6 +22,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { role, user, logout, favorites, preferences } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any)?.avatar_url || null);
 
   useEffect(() => {
@@ -55,11 +56,49 @@ export default function ProfileScreen() {
     console.log('[auth] profile:logout-resolved');
   };
 
-  const handleDeleteRequest = () => {
+  const handleDeleteAccount = () => {
     Alert.alert(
-      'Solicitar eliminacion',
-      `Para solicitar la eliminacion de tu cuenta, datos personales y documentos cargados, comunicate al correo ${SUPPORT_EMAIL} o WhatsApp ${SUPPORT_WHATSAPP}. Atenderemos la solicitud conforme a nuestra politica de privacidad.`,
+      'Eliminar cuenta permanentemente',
+      'Se eliminaran tu cuenta, datos personales, preferencias, solicitudes y contenido asociado. Esta accion no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirmar eliminacion',
+              '¿Estas seguro de que quieres eliminar permanentemente tu cuenta?',
+              [
+                { text: 'No, conservar cuenta', style: 'cancel' },
+                {
+                  text: 'Si, eliminar cuenta',
+                  style: 'destructive',
+                  onPress: () => void confirmDeleteAccount(),
+                },
+              ],
+            );
+          },
+        },
+      ],
     );
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (deletingAccount) return;
+    setDeletingAccount(true);
+    try {
+      await deleteCurrentAccount();
+      await logout();
+      Alert.alert('Cuenta eliminada', 'Tu cuenta y los datos asociados fueron eliminados.');
+    } catch (error) {
+      Alert.alert(
+        'No se pudo eliminar la cuenta',
+        error instanceof Error ? error.message : 'Intenta nuevamente.',
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const handleUpdateAvatar = async () => {
@@ -213,9 +252,20 @@ export default function ProfileScreen() {
             <Text style={[styles.policyText, { color: colors.foreground }]}>Politica de Privacidad</Text>
             <Feather name="chevron-right" size={18} color={colors.border} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.policyRow} onPress={handleDeleteRequest} activeOpacity={0.85}>
-            <Feather name="trash-2" size={18} color="#EF4444" />
-            <Text style={[styles.policyText, { color: colors.foreground }]}>Solicitar eliminacion de cuenta y documentos</Text>
+          <TouchableOpacity
+            style={styles.policyRow}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.85}
+            disabled={deletingAccount}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Feather name="trash-2" size={18} color="#EF4444" />
+            )}
+            <Text style={[styles.policyText, { color: '#EF4444' }]}>
+              {deletingAccount ? 'Eliminando cuenta...' : 'Eliminar cuenta permanentemente'}
+            </Text>
             <Feather name="chevron-right" size={18} color={colors.border} />
           </TouchableOpacity>
         </View>

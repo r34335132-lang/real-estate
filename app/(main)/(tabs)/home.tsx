@@ -26,6 +26,7 @@ import { CategoryCard } from '@/components/CategoryCard';
 import { BrokerCard } from '@/components/BrokerCard';
 import { SearchBar } from '@/components/SearchBar';
 import { SectionHeader } from '@/components/SectionHeader';
+import { SatisfiedClientsButton } from '@/components/SatisfiedClientsButton';
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -223,6 +224,10 @@ export default function HomeScreen() {
             ))}
           </View>
         </View>
+
+        <View style={styles.clientsButton}>
+          <SatisfiedClientsButton />
+        </View>
       </ScrollView>
     </View>
   );
@@ -276,4 +281,5 @@ const styles = StyleSheet.create({
   section: { marginBottom: 16 },
   horizontalList: { paddingHorizontal: 20, paddingRight: 8 },
   verticalList: { paddingHorizontal: 20 },
+  clientsButton: { paddingHorizontal: 20, marginBottom: 16 },
 });

@@ -10,9 +10,8 @@ import { fetchPendingBrokerProfiles, updateBrokerVerificationStatus } from '@/da
 import { fetchPendingReviewProperties, updatePropertyPublicationStatus } from '@/data/services/propertyService';
 import type { BrokerProfile } from '@/data/types';
 import type { Property } from '@/data/catalog';
-import { useSupabase } from '@/lib/env';
-import { getSupabase } from '@/lib/supabase';
-import { openContactWhatsApp } from '@/lib/support';
+import { openContactForm } from '@/lib/contactNavigation';
+import { SatisfiedClientsButton } from '@/components/SatisfiedClientsButton';
 
 interface LegalOption {
   requestType: string;
@@ -113,7 +112,7 @@ const SCOPE_MODULES: ScopeModule[] = [
 export default function LegalScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { role, user } = useApp();
+  const { role } = useApp();
   const [brokers, setBrokers] = useState<BrokerProfile[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
@@ -147,22 +146,13 @@ export default function LegalScreen() {
     await loadAdminReview();
   };
 
-  const handleLegalOptionPress = async (option: Pick<LegalOption, 'requestType' | 'title'>) => {
-    try {
-      if (user && useSupabase()) {
-        const { error } = await getSupabase().from('legal_requests').insert({
-          user_id: user.id,
-          request_type: option.requestType,
-          status: 'pendiente',
-          notes: `Solicitud desde la app: ${option.title}`,
-        });
-        if (error) throw error;
-      }
-    } catch (error) {
-      console.log('[legal] request:create-error', error);
-    } finally {
-      await openContactWhatsApp();
-    }
+  const handleLegalOptionPress = (option: Pick<LegalOption, 'requestType' | 'title'>) => {
+    openContactForm({
+      interest: 'asesoria',
+      message: `Quiero informacion sobre: ${option.title}.`,
+      requestType: option.requestType,
+      requestTitle: option.title,
+    });
   };
 
   return (
@@ -282,7 +272,7 @@ export default function LegalScreen() {
             <TouchableOpacity
               key={i}
               style={[styles.optionCard, { backgroundColor: colors.card }]}
-              onPress={() => void handleLegalOptionPress(opt)}
+              onPress={() => handleLegalOptionPress(opt)}
               activeOpacity={0.85}
             >
               <View style={[styles.optionIcon, { backgroundColor: `${opt.color}18` }]}>
@@ -345,6 +335,8 @@ export default function LegalScreen() {
           </View>
           <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.4)" />
         </TouchableOpacity>
+
+        <SatisfiedClientsButton />
       </ScrollView>
     </View>
   );

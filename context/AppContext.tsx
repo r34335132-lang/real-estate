@@ -76,16 +76,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const applyUser = useCallback(
-    async (u: User) => {
+    async (u: User, options?: { onboarding?: 'complete' | 'required' }) => {
       await loadFavorites(u.id);
 
-      let onboarded = false;
+      const storedOnboarding = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.onboarding);
+      let onboarded =
+        options?.onboarding === 'complete'
+          ? true
+          : options?.onboarding === 'required'
+            ? false
+            : storedOnboarding === 'true';
       if (useSupabase()) {
         const prefs = await fetchPreferences(u.id);
         if (prefs) {
           setPreferencesState(prefs);
           onboarded = true;
         }
+      }
+
+      if (onboarded) {
+        await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
       }
 
       setUser(u);
@@ -106,7 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (useSupabase()) {
           const profile = await restoreSession();
           if (!cancelled && profile) {
-            await applyUser(profile);
+            await applyUser(profile, { onboarding: 'complete' });
             return;
           }
         }
@@ -131,7 +141,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (error || !u) return error ?? 'Error al iniciar sesion';
 
       await clearLegacyAuthStorage();
-      await applyUser(u);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEYS.onboarding, 'true');
+      await applyUser(u, { onboarding: 'complete' });
       return null;
     },
     [applyUser],
@@ -144,7 +155,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       await clearLegacyAuthStorage();
       setHasCompletedOnboarding(false);
-      await applyUser(u);
+      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.onboarding);
+      await applyUser(u, { onboarding: 'required' });
       return null;
     },
     [applyUser],
@@ -156,8 +168,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await clearAuthSession();
       console.log('[auth] logout:clearAuthSession:done');
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.onboarding);
-      console.log('[auth] logout:onboarding-removed');
       resetLocalSession();
       console.log('[auth] logout:resetLocalSession:done');
     } catch (error) {

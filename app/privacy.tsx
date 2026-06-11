@@ -4,8 +4,6 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from '@/lib/support';
-
 const SECTIONS = [
   {
     title: 'Datos que podemos recopilar',
@@ -29,7 +27,8 @@ const SECTIONS = [
   },
   {
     title: 'Eliminacion de datos',
-    body: `Puedes solicitar la eliminacion de tu cuenta, datos personales y documentos cargados escribiendo a ${SUPPORT_EMAIL} o por WhatsApp al ${SUPPORT_WHATSAPP}.`,
+    body:
+      'Puedes eliminar permanentemente tu cuenta y los datos asociados desde Perfil > Eliminar cuenta permanentemente. La app mostrara una confirmacion antes de completar esta accion irreversible.',
   },
   {
     title: 'Terceros',

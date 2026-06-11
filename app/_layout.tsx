@@ -21,12 +21,20 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function AuthRedirector() {
-  const { authLoading, sessionKind } = useApp();
+  const { authLoading, hasCompletedOnboarding, sessionKind } = useApp();
   const pathname = usePathname();
 
   useEffect(() => {
     console.log('[nav] root:auth-state', { authLoading, sessionKind, pathname });
     if (authLoading) return;
+    if (sessionKind === 'user' && pathname === '/') {
+      router.replace(hasCompletedOnboarding ? '/(main)/(tabs)/home' : '/(main)/onboarding');
+      return;
+    }
+    if (sessionKind === 'user' && hasCompletedOnboarding && pathname === '/onboarding') {
+      router.replace('/(main)/(tabs)/home');
+      return;
+    }
     if (sessionKind === 'none' && pathname !== '/' && pathname !== '/privacy' && pathname !== '/terms') {
       console.log('[nav] root:redirect-to-welcome:scheduled', { pathname });
       const redirect = setTimeout(() => {
@@ -36,7 +44,7 @@ function AuthRedirector() {
       return () => clearTimeout(redirect);
     }
     return undefined;
-  }, [authLoading, pathname, sessionKind]);
+  }, [authLoading, hasCompletedOnboarding, pathname, sessionKind]);
 
   return null;
 }

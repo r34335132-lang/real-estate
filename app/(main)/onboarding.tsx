@@ -48,7 +48,7 @@ export default function OnboardingScreen() {
       budget_max: budgetOpt.max,
       budget_range: budget,
     });
-    completeOnboarding();
+    await completeOnboarding();
     router.replace(`/category/${category}`);
   };
 

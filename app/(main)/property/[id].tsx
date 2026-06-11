@@ -24,7 +24,7 @@ import { useApp } from '@/context/AppContext';
 import { formatPrice } from '@/data/catalog';
 import { fetchBrokerById } from '@/data/services/brokerService';
 import type { OperationType } from '@/data/types';
-import { openContactWhatsApp } from '@/lib/support';
+import { openContactForm } from '@/lib/contactNavigation';
 
 const { width, height } = Dimensions.get('window');
 const IMAGE_HEIGHT = height * 0.42;
@@ -252,9 +252,14 @@ export default function PropertyDetailScreen() {
           style={styles.whatsappBtn}
           onPress={() => {
             if (!requireAuth('contact')) return;
-            void openContactWhatsApp(
-              `Hola, quiero recibir asesoria sobre la propiedad ${property.title}.`,
-            );
+            openContactForm({
+              interest: property.operation_type === 'renta' ? 'rentar' : 'comprar',
+              propertyId: property.id,
+              propertyTitle: property.title,
+              propertyPrice: `${formatPrice(property.price)} MXN`,
+              propertyLocation: property.location,
+              propertyReference: `Propiedad ${property.id}`,
+            });
           }}
           activeOpacity={0.85}
         >
@@ -265,9 +270,15 @@ export default function PropertyDetailScreen() {
           style={styles.ctaBtn}
           onPress={() => {
             if (!requireAuth('appointment')) return;
-            void openContactWhatsApp(
-              `Hola, quiero solicitar una visita para la propiedad ${property.title}.`,
-            );
+            openContactForm({
+              interest: property.operation_type === 'renta' ? 'rentar' : 'comprar',
+              message: 'Quiero solicitar una visita para esta propiedad.',
+              propertyId: property.id,
+              propertyTitle: property.title,
+              propertyPrice: `${formatPrice(property.price)} MXN`,
+              propertyLocation: property.location,
+              propertyReference: `Propiedad ${property.id}`,
+            });
           }}
           activeOpacity={0.85}
         >

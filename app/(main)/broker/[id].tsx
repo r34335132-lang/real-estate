@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { PropertyCard } from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
-import { openContactWhatsApp } from '@/lib/support';
+import { openContactForm } from '@/lib/contactNavigation';
 
 const { width } = Dimensions.get('window');
 
@@ -148,22 +148,24 @@ export default function BrokerProfileScreen() {
               style={[styles.contactBtn, { backgroundColor: '#0F6BFF', flex: 2 }]}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                void openContactWhatsApp(
-                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
-                );
+                openContactForm({
+                  interest: 'asesoria',
+                  message: `Quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                });
               }}
               activeOpacity={0.85}
             >
               <Feather name="phone" size={16} color="#fff" />
-              <Text style={styles.contactBtnText}>Llamar</Text>
+              <Text style={styles.contactBtnText}>Contactar</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.contactBtn, { backgroundColor: '#22C55E', flex: 2 }]}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                void openContactWhatsApp(
-                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
-                );
+                openContactForm({
+                  interest: 'asesoria',
+                  message: `Quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                });
               }}
               activeOpacity={0.85}
             >
@@ -175,9 +177,10 @@ export default function BrokerProfileScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 if (!requireAuth('contact')) return;
-                void openContactWhatsApp(
-                  `Hola, quiero recibir asesoria inmobiliaria con ${broker.name}.`,
-                );
+                openContactForm({
+                  interest: 'asesoria',
+                  message: `Quiero recibir asesoria inmobiliaria con ${broker.name}.`,
+                });
               }}
             >
               <Feather name="mail" size={18} color={colors.foreground} />

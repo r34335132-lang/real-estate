@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
       goToOnboarding();
       return;
     }
-    goToOnboarding();
+    router.replace('/(main)/(tabs)/home');
   };
 
   if (authLoading) {
