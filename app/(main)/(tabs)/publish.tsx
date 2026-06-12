@@ -129,7 +129,7 @@ export default function PublishScreen() {
   const handleUploadId = async () => {
     try {
       setUploadingId(true);
-      const url = await pickAndUploadImage('broker-documents');
+      const url = await pickAndUploadImage('broker-document', user?.id);
       if (url) setIdDocumentUrl(url);
     } catch {
       Alert.alert('Error', 'No se pudo subir tu identificacion.');
@@ -173,7 +173,7 @@ export default function PublishScreen() {
 
     try {
       setUploadingImage(true);
-      const url = await pickAndUploadImage('properties');
+      const url = await pickAndUploadImage('property-image', user?.id);
       if (url) setImages((prev) => [...prev, url]);
     } catch {
       Alert.alert('Error', 'No se pudo subir la imagen al servidor.');
@@ -185,7 +185,7 @@ export default function PublishScreen() {
   const handleUploadDocument = async (documentType: PropertyDocumentType) => {
     try {
       setUploadingDocument(documentType);
-      const url = await pickAndUploadImage('property-documents');
+      const url = await pickAndUploadImage('property-document', user?.id);
       if (!url) return;
 
       setDocuments((prev) => [

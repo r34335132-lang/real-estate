@@ -26,6 +26,9 @@ Deno.serve(async (request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let adminClient: ReturnType<typeof createClient> | null = null;
+  let createdUserId: string | null = null;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
@@ -39,7 +42,9 @@ Deno.serve(async (request) => {
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authorization } },
     });
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     const { data: authData, error: authError } = await callerClient.auth.getUser();
     if (authError || !authData.user) {
@@ -62,7 +67,14 @@ Deno.serve(async (request) => {
     const password = body.password ?? '';
     const role = body.role;
 
-    if (!fullName || !email || password.length < 6 || !role) {
+    if (
+      !fullName
+      || !email
+      || !email.includes('@')
+      || password.length < 6
+      || !role
+      || !['admin', 'broker', 'buyer'].includes(role)
+    ) {
       return json(
         { error: 'Nombre, correo, rol y contrasena temporal de al menos 6 caracteres son obligatorios.' },
         400,
@@ -76,10 +88,29 @@ Deno.serve(async (request) => {
       user_metadata: { full_name: fullName, role },
     });
     if (createError || !created.user) {
-      return json({ error: createError?.message ?? 'No se pudo crear la cuenta.' }, 400);
+      console.error('admin-create-user:create-auth', {
+        code: createError?.code,
+        message: createError?.message,
+        status: createError?.status,
+        email,
+        role,
+      });
+      const duplicate =
+        createError?.code === 'email_exists'
+        || createError?.code === 'user_already_exists'
+        || createError?.message?.toLowerCase().includes('already been registered');
+      return json(
+        {
+          error: duplicate
+            ? 'Ya existe una cuenta registrada con este correo.'
+            : createError?.message ?? 'No se pudo crear la cuenta.',
+        },
+        duplicate ? 409 : createError?.status ?? 400,
+      );
     }
 
     const userId = created.user.id;
+    createdUserId = userId;
     const { error: profileError } = await adminClient.from('users').upsert({
       id: userId,
       full_name: fullName,
@@ -89,7 +120,9 @@ Deno.serve(async (request) => {
       role,
       updated_at: new Date().toISOString(),
     });
-    if (profileError) throw profileError;
+    if (profileError) {
+      throw new Error(`No se pudo guardar el perfil de usuario: ${profileError.message}`);
+    }
 
     if (role === 'broker') {
       const { error: brokerError } = await adminClient.from('broker_profiles').upsert(
@@ -111,12 +144,24 @@ Deno.serve(async (request) => {
         },
         { onConflict: 'user_id' },
       );
-      if (brokerError) throw brokerError;
+      if (brokerError) {
+        throw new Error(`No se pudo guardar el perfil de broker: ${brokerError.message}`);
+      }
     }
 
+    createdUserId = null;
     return json({ user_id: userId }, 200);
   } catch (error) {
     console.error('admin-create-user', error);
+    if (adminClient && createdUserId) {
+      const { error: rollbackError } = await adminClient.auth.admin.deleteUser(createdUserId);
+      if (rollbackError) {
+        console.error('admin-create-user:rollback', {
+          userId: createdUserId,
+          message: rollbackError.message,
+        });
+      }
+    }
     return json({ error: error instanceof Error ? error.message : 'Error inesperado.' }, 500);
   }
 });

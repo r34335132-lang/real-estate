@@ -119,7 +119,22 @@ export async function createAdminUser(input: AdminCreateUserInput): Promise<void
   const { data, error } = await getSupabase().functions.invoke('admin-create-user', {
     body: input,
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      let responseMessage: string | null = null;
+      try {
+        const payload = (await context.clone().json()) as { error?: unknown };
+        if (typeof payload.error === 'string' && payload.error.trim()) {
+          responseMessage = payload.error;
+        }
+      } catch {
+        // Keep the SDK error when the response body is not JSON.
+      }
+      if (responseMessage) throw new Error(responseMessage);
+    }
+    throw new Error(error.message);
+  }
   if (data?.error) throw new Error(data.error);
 }
 
@@ -159,7 +174,6 @@ export async function fetchAdminProperties(): Promise<AdminProperty[]> {
       supabase
         .from('properties')
         .select('*')
-        .in('publication_status', ['draft', 'pending_review', 'rejected'])
         .order('created_at', { ascending: false }),
       supabase.from('broker_profiles').select('*'),
     ]);

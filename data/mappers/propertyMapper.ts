@@ -130,6 +130,7 @@ export interface DbBroker {
   rating: number | null;
   total_sales: number | null;
   active_properties: number | null;
+  review_count?: number | null;
   verified: boolean | null;
   avatar_url: string | null;
 }
@@ -149,7 +150,7 @@ export function mapDbBroker(row: DbBroker, displayName = 'Broker JC') {
     bio: row.bio ?? '',
     experience: row.years_experience ?? 0,
     rating: Number(row.rating ?? 0),
-    reviews: 0,
+    reviews: row.review_count ?? 0,
     activeListings: row.active_properties ?? 0,
     closedSales: row.total_sales ?? 0,
     verified: Boolean(row.verified),

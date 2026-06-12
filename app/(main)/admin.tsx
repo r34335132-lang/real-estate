@@ -31,6 +31,8 @@ import {
 import type { BrokerVerificationStatus, User, UserRole } from '@/data/types';
 import { formatPrice } from '@/data/catalog';
 import { useColors } from '@/hooks/useColors';
+import { assertAdmin } from '@/lib/authorization';
+import { createSignedDocumentUrl, type PrivateDocumentBucket } from '@/lib/storage';
 
 type AdminView = 'users' | 'brokers' | 'properties';
 
@@ -160,6 +162,26 @@ export default function AdminScreen() {
       await loadAdminData();
     } catch (error) {
       Alert.alert('No se pudo actualizar', error instanceof Error ? error.message : 'Intenta nuevamente.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleOpenSensitiveDocument = async (
+    bucket: PrivateDocumentBucket,
+    path: string,
+    actionKey: string,
+  ) => {
+    setActionId(actionKey);
+    try {
+      assertAdmin(role);
+      const signedUrl = await createSignedDocumentUrl(bucket, path);
+      await Linking.openURL(signedUrl);
+    } catch (error) {
+      Alert.alert(
+        'No se pudo abrir el documento',
+        error instanceof Error ? error.message : 'Intenta nuevamente.',
+      );
     } finally {
       setActionId(null);
     }
@@ -339,9 +361,21 @@ export default function AdminScreen() {
                   <Detail label="Especialidades" value={broker.specialties.join(', ')} colors={colors} />
                   <Detail label="Certificaciones" value={broker.certifications.join(', ')} colors={colors} />
                   {broker.id_document_url ? (
-                    <TouchableOpacity style={styles.documentButton} onPress={() => void Linking.openURL(broker.id_document_url)}>
-                      <Feather name="file-text" size={16} color="#0F6BFF" />
-                      <Text style={styles.documentButtonText}>Ver identificacion cargada</Text>
+                    <TouchableOpacity
+                      style={styles.documentButton}
+                      onPress={() => void handleOpenSensitiveDocument(
+                        'broker-documents',
+                        broker.id_document_url,
+                        `open-broker-${broker.id}`,
+                      )}
+                      disabled={actionId === `open-broker-${broker.id}`}
+                    >
+                      {actionId === `open-broker-${broker.id}` ? (
+                        <ActivityIndicator size="small" color="#0F6BFF" />
+                      ) : (
+                        <Feather name="file-text" size={16} color="#0F6BFF" />
+                      )}
+                      <Text style={styles.documentButtonText}>Ver identificacion temporal</Text>
                     </TouchableOpacity>
                   ) : (
                     <Text style={[styles.warningText, { color: colors.mutedForeground }]}>Sin identificacion cargada</Text>
@@ -409,9 +443,18 @@ export default function AdminScreen() {
                       <View key={document.id} style={styles.documentReview}>
                         <TouchableOpacity
                           style={styles.documentButton}
-                          onPress={() => void Linking.openURL(document.file_url)}
+                          onPress={() => void handleOpenSensitiveDocument(
+                            'property-documents',
+                            document.file_url,
+                            `open-document-${document.id}`,
+                          )}
+                          disabled={actionId === `open-document-${document.id}`}
                         >
-                          <Feather name="file" size={15} color="#0F6BFF" />
+                          {actionId === `open-document-${document.id}` ? (
+                            <ActivityIndicator size="small" color="#0F6BFF" />
+                          ) : (
+                            <Feather name="file" size={15} color="#0F6BFF" />
+                          )}
                           <Text style={styles.documentButtonText}>{document.document_type.replace(/_/g, ' ')}</Text>
                           <StatusBadge status={document.status} />
                         </TouchableOpacity>

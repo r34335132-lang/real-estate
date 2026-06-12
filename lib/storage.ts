@@ -1,59 +1,94 @@
 import * as ImagePicker from 'expo-image-picker';
-import { getSupabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
 
-export const STORAGE_BUCKET_RECOMMENDATIONS = {
-  propertyDocuments: 'property-documents should be private and served with signed URLs.',
-  brokerDocuments: 'broker-documents should be private and served with signed URLs.',
-  avatars: 'avatars can be public or private depending on product visibility.',
-  propertyImages: 'property images can be public when they only contain listing photos.',
-} as const;
+import { getSupabase } from '@/lib/supabase';
 
-const SENSITIVE_UPLOAD_PREFIXES = ['property-documents', 'broker-documents'];
+export type UploadKind =
+  | 'property-image'
+  | 'avatar'
+  | 'broker-document'
+  | 'property-document';
 
-export const pickAndUploadImage = async (pathPrefix: string): Promise<string | null> => {
-  try {
-    // 1. Abrir la galería
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // Permite recortar la foto
-      quality: 0.7, // Comprimir ligeramente
-      base64: true, // Importante para enviar a Supabase
-    });
+export type PrivateDocumentBucket = 'broker-documents' | 'property-documents';
 
-    if (result.canceled || !result.assets[0].base64) {
-      return null;
-    }
-
-    const base64 = result.assets[0].base64;
-    const uri = result.assets[0].uri;
-    const ext = uri.split('.').pop() || 'jpeg'; // Obtener extensión
-    const fileName = `${pathPrefix}_${Date.now()}.${ext}`; // Nombre único
-
-    const supabase = getSupabase();
-
-    // 2. Subir al bucket 'img'
-    const { error } = await supabase.storage
-      .from('img')
-      .upload(fileName, decode(base64), {
-        contentType: `image/${ext}`,
-      });
-
-    if (error) throw error;
-
-    // 3. Obtener la URL pública para guardarla en la base de datos
-    if (SENSITIVE_UPLOAD_PREFIXES.some((prefix) => pathPrefix.startsWith(prefix))) {
-      // TODO: usar bucket privado y signed URLs para documentos sensibles.
-    }
-
-
-    const { data: publicData } = supabase.storage
-      .from('img')
-      .getPublicUrl(fileName);
-
-    return publicData.publicUrl;
-  } catch (error) {
-    console.error('Error al subir la imagen:', error);
-    throw error;
-  }
+const UPLOAD_CONFIG: Record<
+  UploadKind,
+  { bucket: string; isPublic: boolean; allowsEditing: boolean }
+> = {
+  'property-image': { bucket: 'property-images', isPublic: true, allowsEditing: true },
+  avatar: { bucket: 'avatars', isPublic: true, allowsEditing: true },
+  'broker-document': { bucket: 'broker-documents', isPublic: false, allowsEditing: false },
+  'property-document': { bucket: 'property-documents', isPublic: false, allowsEditing: false },
 };
+
+/**
+ * Public property photos and avatars return a public URL.
+ * Sensitive broker/property documents return only their private object path.
+ * Private document paths must only be opened by an admin using a temporary signed URL.
+ */
+export async function pickAndUploadImage(
+  kind: UploadKind,
+  userId?: string,
+): Promise<string | null> {
+  if (!userId) throw new Error('Necesitas una sesion activa para subir archivos.');
+
+  const config = UPLOAD_CONFIG[kind];
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: config.allowsEditing,
+    quality: 0.7,
+    base64: true,
+  });
+
+  const asset = result.assets?.[0];
+  if (result.canceled || !asset?.base64) return null;
+
+  const extension = getFileExtension(asset.fileName, asset.uri, asset.mimeType);
+  const path = `${userId}/${kind}-${Date.now()}.${extension}`;
+  const contentType = asset.mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+  const supabase = getSupabase();
+  const { error } = await supabase.storage
+    .from(config.bucket)
+    .upload(path, decode(asset.base64), { contentType, upsert: false });
+
+  if (error) throw error;
+
+  if (!config.isPublic) return path;
+
+  const { data } = supabase.storage.from(config.bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function createSignedDocumentUrl(
+  bucket: PrivateDocumentBucket,
+  path: string,
+  expiresInSeconds = 600,
+): Promise<string> {
+  const privatePath = normalizePrivateDocumentPath(bucket, path);
+  if (!privatePath || /^https?:\/\//i.test(privatePath)) {
+    throw new Error('El documento debe volver a cargarse en el almacenamiento privado.');
+  }
+
+  const { data, error } = await getSupabase().storage
+    .from(bucket)
+    .createSignedUrl(privatePath, expiresInSeconds);
+  if (error) throw error;
+  if (!data?.signedUrl) throw new Error('No se pudo generar el acceso temporal al documento.');
+  return data.signedUrl;
+}
+
+function normalizePrivateDocumentPath(bucket: PrivateDocumentBucket, value: string): string {
+  const trimmed = value.trim().replace(/^\/+/, '');
+  return trimmed.startsWith(`${bucket}/`) ? trimmed.slice(bucket.length + 1) : trimmed;
+}
+
+function getFileExtension(
+  fileName?: string | null,
+  uri?: string,
+  mimeType?: string | null,
+): string {
+  const fromName = (fileName || uri || '').split('?')[0].split('.').pop()?.toLowerCase();
+  if (fromName && /^[a-z0-9]{2,5}$/.test(fromName)) return fromName === 'jpeg' ? 'jpg' : fromName;
+  const fromMime = mimeType?.split('/').pop()?.toLowerCase();
+  return fromMime === 'jpeg' ? 'jpg' : fromMime || 'jpg';
+}

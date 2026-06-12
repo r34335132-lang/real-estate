@@ -39,14 +39,14 @@ Deno.serve(async (request) => {
     }
 
     const userId = authData.user.id;
-    const storagePaths = new Set<string>();
+    const storageObjects = new Map<string, Set<string>>();
 
     const { data: userRow } = await adminClient
       .from('users')
       .select('avatar_url')
       .eq('id', userId)
       .maybeSingle();
-    addStoragePath(storagePaths, userRow?.avatar_url);
+    addStorageObject(storageObjects, 'avatars', userRow?.avatar_url);
 
     const { data: brokerRows, error: brokerError } = await adminClient
       .from('broker_profiles')
@@ -56,8 +56,8 @@ Deno.serve(async (request) => {
 
     const brokerIds = (brokerRows ?? []).map((row) => row.id as string);
     for (const broker of brokerRows ?? []) {
-      addStoragePath(storagePaths, broker.avatar_url);
-      addStoragePath(storagePaths, broker.id_document_url);
+      addStorageObject(storageObjects, 'avatars', broker.avatar_url);
+      addStorageObject(storageObjects, 'broker-documents', broker.id_document_url);
     }
 
     let propertyIds: string[] = [];
@@ -71,7 +71,7 @@ Deno.serve(async (request) => {
       propertyIds = (propertyRows ?? []).map((row) => row.id as string);
       for (const property of propertyRows ?? []) {
         for (const image of (property.images as string[] | null) ?? []) {
-          addStoragePath(storagePaths, image);
+          addStorageObject(storageObjects, 'property-images', image);
         }
       }
     }
@@ -82,7 +82,9 @@ Deno.serve(async (request) => {
         .select('file_url')
         .in('property_id', propertyIds);
       if (documentError) throw documentError;
-      for (const document of documentRows ?? []) addStoragePath(storagePaths, document.file_url);
+      for (const document of documentRows ?? []) {
+        addStorageObject(storageObjects, 'property-documents', document.file_url);
+      }
 
       const { error: legalPropertyError } = await adminClient
         .from('legal_requests')
@@ -121,11 +123,10 @@ Deno.serve(async (request) => {
       if (deleteBrokerError) throw deleteBrokerError;
     }
 
-    if (storagePaths.size > 0) {
-      const { error: storageError } = await adminClient.storage
-        .from('img')
-        .remove([...storagePaths]);
-      if (storageError) console.error('delete-account storage cleanup', storageError);
+    for (const [bucket, paths] of storageObjects) {
+      if (paths.size === 0) continue;
+      const { error: storageError } = await adminClient.storage.from(bucket).remove([...paths]);
+      if (storageError) console.error(`delete-account storage cleanup ${bucket}`, storageError);
     }
 
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(userId);
@@ -141,13 +142,17 @@ Deno.serve(async (request) => {
   }
 });
 
-function addStoragePath(paths: Set<string>, value: unknown) {
+function addStorageObject(
+  objects: Map<string, Set<string>>,
+  expectedBucket: string,
+  value: unknown,
+) {
   if (typeof value !== 'string' || !value) return;
-  const marker = '/storage/v1/object/public/img/';
-  const index = value.indexOf(marker);
-  if (index >= 0) {
-    paths.add(decodeURIComponent(value.slice(index + marker.length).split('?')[0]));
-  }
+  const match = value.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/([^?]+)/);
+  const bucket = match?.[1] || expectedBucket;
+  const path = match?.[2] ? decodeURIComponent(match[2]) : value.replace(/^\/+/, '');
+  if (!objects.has(bucket)) objects.set(bucket, new Set());
+  objects.get(bucket)?.add(path);
 }
 
 function json(body: Record<string, unknown>, status: number) {

@@ -259,3 +259,48 @@ export async function restoreSession(): Promise<User | null> {
   return profile;
 }
 
+export async function updateCurrentUserProfile(input: {
+  phone: string;
+  avatarUrl?: string | null;
+  password?: string;
+}): Promise<User> {
+  if (!useSupabase()) throw new Error('Se requiere conexion con Supabase.');
+
+  const supabase = getSupabase();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('Tu sesion ya no es valida.');
+
+  const phone = input.phone.trim();
+  const avatarUrl = input.avatarUrl?.trim() || null;
+  const updatedAt = new Date().toISOString();
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .update({ phone, avatar_url: avatarUrl, updated_at: updatedAt })
+    .eq('id', authData.user.id)
+    .select()
+    .single();
+  if (profileError || !profile) {
+    throw new Error(profileError?.message ?? 'No se pudo actualizar el perfil.');
+  }
+
+  const mappedProfile = mapRow(profile as Record<string, unknown>);
+  if (mappedProfile.role === 'broker') {
+    const { error: brokerError } = await supabase
+      .from('broker_profiles')
+      .update({ phone, whatsapp: phone, avatar_url: avatarUrl, updated_at: updatedAt })
+      .eq('user_id', authData.user.id);
+    if (brokerError) throw new Error(brokerError.message);
+  }
+
+  const authUpdate: {
+    password?: string;
+    data: { avatar_url: string | null };
+  } = { data: { avatar_url: avatarUrl } };
+  if (input.password) authUpdate.password = input.password;
+
+  const { error: updateAuthError } = await supabase.auth.updateUser(authUpdate);
+  if (updateAuthError) throw new Error(updateAuthError.message);
+
+  return mappedProfile;
+}
+

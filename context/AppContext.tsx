@@ -8,6 +8,7 @@ import {
   restoreSession,
   signInWithEmail,
   signUpWithEmail,
+  updateCurrentUserProfile,
 } from '@/data/services/authService';
 import { fetchFavoriteIds, toggleFavoriteDb } from '@/data/services/favoriteService';
 import { fetchPreferences, savePreferences } from '@/data/services/preferenceService';
@@ -35,6 +36,11 @@ interface AppContextType {
   isFavorite: (id: string) => boolean;
   requireAuth: (action: 'contact' | 'favorite' | 'appointment' | 'save') => boolean;
   refreshFavorites: () => Promise<void>;
+  updateProfile: (input: {
+    phone: string;
+    avatarUrl?: string | null;
+    password?: string;
+  }) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -242,6 +248,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) await loadFavorites(user.id);
   }, [loadFavorites, user]);
 
+  const updateProfile = useCallback(
+    async (input: { phone: string; avatarUrl?: string | null; password?: string }) => {
+      const updatedUser = await updateCurrentUserProfile(input);
+      setUser(updatedUser);
+      setRole(updatedUser.role);
+    },
+    [],
+  );
+
   if (!hydrated) return null;
 
   return (
@@ -264,6 +279,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isFavorite,
         requireAuth,
         refreshFavorites,
+        updateProfile,
       }}
     >
       {children}

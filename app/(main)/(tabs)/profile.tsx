@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,41 +20,79 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import Images from '@/constants/images';
 import { deleteCurrentAccount } from '@/data/services/accountService';
-import type { Appointment, LegalRequest } from '@/data/types';
 import type { Property } from '@/data/catalog';
+import {
+  fetchProfileMetrics,
+  type ProfileMetrics,
+} from '@/data/services/profileService';
 import { useColors } from '@/hooks/useColors';
+import { useSupabase } from '@/lib/env';
 import { pickAndUploadImage } from '@/lib/storage';
 import { getSupabase } from '@/lib/supabase';
 
-const EMPTY_APPOINTMENTS: Appointment[] = [];
-const EMPTY_LEGAL_REQUESTS: LegalRequest[] = [];
-const EMPTY_PROPERTIES: Property[] = [];
+const EMPTY_METRICS: ProfileMetrics = {
+  users: 0,
+  properties: 0,
+  requests: 0,
+  appointments: 0,
+  activeListings: 0,
+  closedSales: 0,
+  rating: 0,
+  reviews: 0,
+};
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { role, user, logout, favorites, preferences } = useApp();
+  const { role, user, logout, favorites, preferences, updateProfile } = useApp();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>((user as any)?.avatar_url || null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [metrics, setMetrics] = useState<ProfileMetrics>(EMPTY_METRICS);
+  const [myProperties, setMyProperties] = useState<Property[]>([]);
 
   useEffect(() => {
     setAvatarUrl(user ? ((user as any)?.avatar_url || null) : null);
   }, [user]);
 
+  useEffect(() => {
+    if (!user || !useSupabase()) {
+      setMetrics(EMPTY_METRICS);
+      setMyProperties([]);
+      return;
+    }
+
+    let active = true;
+    void fetchProfileMetrics(user.id, role)
+      .then((result) => {
+        if (!active) return;
+        setMetrics(result.metrics);
+        setMyProperties(result.properties);
+      })
+      .catch(() => {
+        if (!active) return;
+        setMetrics(EMPTY_METRICS);
+        setMyProperties([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [role, user]);
+
   const broker = {
     title: 'Broker Inmobiliario',
     company: 'JC Real Estate Group',
     image: Images.broker1,
-    activeListings: 0,
-    closedSales: 0,
-    rating: 0,
+    activeListings: metrics.activeListings,
+    closedSales: metrics.closedSales,
+    rating: metrics.rating,
   };
-
-  const myProperties = EMPTY_PROPERTIES.filter((p) => p.broker_id === user?.id).slice(0, 3);
-  const favoriteProps = EMPTY_PROPERTIES.filter((p) => favorites.includes(p.id));
-  const buyerAppointments = EMPTY_APPOINTMENTS.filter((a) => a.user_id === user?.id);
-  const legalRequests = EMPTY_LEGAL_REQUESTS;
 
   const displayName = user?.full_name || 'Usuario';
   const roleLabels: Record<string, string> = {
@@ -104,7 +155,7 @@ export default function ProfileScreen() {
   const handleUpdateAvatar = async () => {
     try {
       setUploadingAvatar(true);
-      const url = await pickAndUploadImage(`avatars/${user?.id || 'default'}`);
+      const url = await pickAndUploadImage('avatar', user?.id);
       if (!url) {
         setUploadingAvatar(false);
         return;
@@ -125,6 +176,61 @@ export default function ProfileScreen() {
     } catch {
       setUploadingAvatar(false);
       Alert.alert('Error', 'No se pudo subir la foto.');
+    }
+  };
+
+  const openProfileEditor = () => {
+    setPhone(user?.phone ?? '');
+    setDraftAvatarUrl(avatarUrl);
+    setPassword('');
+    setConfirmPassword('');
+    setEditingProfile(true);
+  };
+
+  const handlePickDraftAvatar = async () => {
+    if (uploadingAvatar) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await pickAndUploadImage('avatar', user?.id);
+      if (url) setDraftAvatarUrl(url);
+    } catch (error) {
+      Alert.alert(
+        'No se pudo subir la foto',
+        error instanceof Error ? error.message : 'Intenta nuevamente.',
+      );
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (savingProfile) return;
+    if (password && password.length < 6) {
+      Alert.alert('Contrasena corta', 'La nueva contrasena debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Revisa la contrasena', 'Las contrasenas no coinciden.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      await updateProfile({
+        phone,
+        avatarUrl: draftAvatarUrl,
+        password: password || undefined,
+      });
+      setAvatarUrl(draftAvatarUrl);
+      setEditingProfile(false);
+      Alert.alert('Perfil actualizado', 'Tus cambios se guardaron correctamente.');
+    } catch (error) {
+      Alert.alert(
+        'No se pudo actualizar el perfil',
+        error instanceof Error ? error.message : 'Intenta nuevamente.',
+      );
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -168,11 +274,11 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           {isAdmin && (
             <>
-              <Stat value="0" label="Usuarios" />
+              <Stat value={metrics.users} label="Usuarios" />
               <Divider />
-              <Stat value="0" label="Propiedades" />
+              <Stat value={metrics.properties} label="Propiedades" />
               <Divider />
-              <Stat value={legalRequests.length} label="Solicitudes" />
+              <Stat value={metrics.requests} label="Solicitudes" />
             </>
           )}
           {isBroker && (
@@ -181,14 +287,14 @@ export default function ProfileScreen() {
               <Divider />
               <Stat value={broker.closedSales} label="Ventas" />
               <Divider />
-              <Stat value={broker.rating} label="Rating" />
+              <Stat value={broker.rating.toFixed(1)} label={`${metrics.reviews} resenas`} />
             </>
           )}
           {isBuyer && (
             <>
-              <Stat value={favoriteProps.length} label="Favoritos" />
+              <Stat value={favorites.length} label="Favoritos" />
               <Divider />
-              <Stat value={buyerAppointments.length} label="Citas" />
+              <Stat value={metrics.appointments} label="Citas" />
               <Divider />
               <Stat value={preferences ? 1 : 0} label="Preferencias" />
             </>
@@ -216,7 +322,7 @@ export default function ProfileScreen() {
                   { icon: 'plus-circle' as const, label: 'Publicar', color: '#0F6BFF', route: '/(main)/(tabs)/publish' },
                   { icon: 'bar-chart-2' as const, label: 'Leads', color: '#22C55E' },
                   { icon: 'calendar' as const, label: 'Citas', color: '#C8A96B' },
-                  { icon: 'edit-2' as const, label: 'Perfil', color: '#A78BFA' },
+                  { icon: 'edit-2' as const, label: 'Perfil', color: '#A78BFA', action: 'edit-profile' as const },
                 ]
               : [
                     { icon: 'heart' as const, label: 'Favoritos', color: '#EF4444' },
@@ -229,6 +335,10 @@ export default function ProfileScreen() {
               key={i}
               style={[styles.actionBtn, { backgroundColor: colors.card }]}
               onPress={() => {
+                if ('action' in action && action.action === 'edit-profile') {
+                  openProfileEditor();
+                  return;
+                }
                 if ('route' in action && action.route) router.push(action.route as never);
               }}
               activeOpacity={0.85}
@@ -286,6 +396,125 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal
+        visible={editingProfile}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !savingProfile && setEditingProfile(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.editorSheet, { backgroundColor: colors.card }]}>
+            <View style={styles.editorHeader}>
+              <View>
+                <Text style={[styles.editorTitle, { color: colors.foreground }]}>Editar perfil</Text>
+                <Text style={[styles.editorSubtitle, { color: colors.mutedForeground }]}>
+                  Actualiza tus datos de contacto y acceso
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.closeButton, { borderColor: colors.border }]}
+                onPress={() => setEditingProfile(false)}
+                disabled={savingProfile}
+              >
+                <Feather name="x" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.editorContent}
+            >
+              <TouchableOpacity
+                style={styles.editorAvatarWrap}
+                onPress={() => void handlePickDraftAvatar()}
+                disabled={uploadingAvatar}
+              >
+                {uploadingAvatar ? (
+                  <View style={[styles.editorAvatar, styles.avatarLoading]}>
+                    <ActivityIndicator color="#C8A96B" />
+                  </View>
+                ) : (
+                  <Image
+                    source={draftAvatarUrl ? { uri: draftAvatarUrl } : Images.broker1}
+                    style={styles.editorAvatar}
+                  />
+                )}
+                <View style={styles.editorCameraBadge}>
+                  <Feather name="camera" size={14} color="#fff" />
+                </View>
+              </TouchableOpacity>
+
+              <ProfileInput
+                label="Numero de telefono"
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Tu numero de contacto"
+                keyboardType="phone-pad"
+                colors={colors}
+              />
+              <ProfileInput
+                label="Nueva contrasena"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Dejar vacio para conservarla"
+                secureTextEntry
+                colors={colors}
+              />
+              <ProfileInput
+                label="Confirmar contrasena"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repite la nueva contrasena"
+                secureTextEntry
+                colors={colors}
+              />
+
+              <TouchableOpacity
+                style={[styles.saveButton, savingProfile && styles.disabledButton]}
+                onPress={() => void handleSaveProfile()}
+                disabled={savingProfile || uploadingAvatar}
+              >
+                {savingProfile ? (
+                  <ActivityIndicator color="#071B33" />
+                ) : (
+                  <>
+                    <Feather name="save" size={18} color="#071B33" />
+                    <Text style={styles.saveButtonText}>Guardar cambios</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
+  );
+}
+
+function ProfileInput({
+  label,
+  colors,
+  ...props
+}: React.ComponentProps<typeof TextInput> & {
+  label: string;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.inputLabel, { color: colors.foreground }]}>{label}</Text>
+      <TextInput
+        {...props}
+        style={[
+          styles.input,
+          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
+        ]}
+        placeholderTextColor={colors.mutedForeground}
+      />
     </View>
   );
 }
@@ -392,4 +621,63 @@ const styles = StyleSheet.create({
   propInfo: { flex: 1, gap: 3 },
   propTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   propLocation: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,27,51,0.62)' },
+  editorSheet: {
+    maxHeight: '88%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  editorHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  editorTitle: { fontSize: 20, fontFamily: 'Inter_700Bold' },
+  editorSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editorContent: { paddingTop: 20, paddingBottom: 12, gap: 16 },
+  editorAvatarWrap: { alignSelf: 'center', position: 'relative', marginBottom: 4 },
+  editorAvatar: { width: 92, height: 92, borderRadius: 46, borderWidth: 3, borderColor: '#C8A96B' },
+  avatarLoading: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#071B33' },
+  editorCameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#0F6BFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  inputGroup: { gap: 7 },
+  inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  input: {
+    minHeight: 50,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+  },
+  saveButton: {
+    minHeight: 52,
+    borderRadius: 10,
+    backgroundColor: '#C8A96B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 4,
+  },
+  disabledButton: { opacity: 0.6 },
+  saveButtonText: { color: '#071B33', fontSize: 14, fontFamily: 'Inter_700Bold' },
 });

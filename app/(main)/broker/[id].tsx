@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -11,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { goBackOr } from '@/lib/navigation';
 import { routes } from '@/lib/routes';
@@ -24,6 +26,7 @@ import { useColors } from '@/hooks/useColors';
 import { PropertyCard } from '@/components/PropertyCard';
 import { useApp } from '@/context/AppContext';
 import { openContactForm } from '@/lib/contactNavigation';
+import { fetchMyBrokerRating, saveBrokerRating } from '@/data/services/reviewService';
 
 const { width } = Dimensions.get('window');
 
@@ -31,7 +34,10 @@ export default function BrokerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { toggleFavorite, isFavorite, requireAuth } = useApp();
+  const queryClient = useQueryClient();
+  const { toggleFavorite, isFavorite, requireAuth, role, user } = useApp();
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [savingRating, setSavingRating] = useState(false);
 
   const { data: broker, isLoading } = useQuery({
     queryKey: ['broker', id],
@@ -44,6 +50,42 @@ export default function BrokerProfileScreen() {
     queryFn: () => fetchByBroker(id ?? ''),
     enabled: Boolean(id),
   });
+
+  const { data: myRating } = useQuery({
+    queryKey: ['broker-rating', user?.id, id],
+    queryFn: () => fetchMyBrokerRating(user!.id, id ?? ''),
+    enabled: Boolean(user?.id && id && role === 'buyer'),
+  });
+
+  useEffect(() => {
+    setSelectedRating(myRating ?? 0);
+  }, [myRating]);
+
+  const handleSaveRating = async () => {
+    if (!user || role !== 'buyer') {
+      Alert.alert('Inicia sesion', 'Solo los clientes registrados pueden calificar brokers.');
+      return;
+    }
+    if (!id || selectedRating < 1 || savingRating) return;
+
+    setSavingRating(true);
+    try {
+      await saveBrokerRating(user.id, id, selectedRating);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['broker', id] }),
+        queryClient.invalidateQueries({ queryKey: ['brokers'] }),
+        queryClient.invalidateQueries({ queryKey: ['broker-rating', user.id, id] }),
+      ]);
+      Alert.alert('Calificacion guardada', 'Gracias por compartir tu experiencia.');
+    } catch (error) {
+      Alert.alert(
+        'No se pudo guardar',
+        error instanceof Error ? error.message : 'Intenta nuevamente.',
+      );
+    } finally {
+      setSavingRating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -186,6 +228,52 @@ export default function BrokerProfileScreen() {
               <Feather name="mail" size={18} color={colors.foreground} />
             </TouchableOpacity>
           </View>
+
+          {role === 'buyer' && (
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <View style={styles.cardHeader}>
+                <Feather name="star" size={16} color="#C8A96B" />
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                  Califica tu experiencia
+                </Text>
+              </View>
+              <View style={styles.ratingEditor}>
+                <View style={styles.ratingStars}>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <TouchableOpacity
+                      key={rating}
+                      style={styles.ratingStarButton}
+                      onPress={() => setSelectedRating(rating)}
+                      disabled={savingRating}
+                      accessibilityLabel={`${rating} estrellas`}
+                    >
+                      <Feather
+                        name="star"
+                        size={26}
+                        color={rating <= selectedRating ? '#C8A96B' : colors.border}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.ratingSaveButton,
+                    (selectedRating === 0 || savingRating) && styles.ratingSaveDisabled,
+                  ]}
+                  onPress={() => void handleSaveRating()}
+                  disabled={selectedRating === 0 || savingRating}
+                >
+                  {savingRating ? (
+                    <ActivityIndicator size="small" color="#071B33" />
+                  ) : (
+                    <Text style={styles.ratingSaveText}>
+                      {myRating ? 'Actualizar' : 'Guardar'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Specialty */}
           <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -355,6 +443,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 4,
   },
+  ratingEditor: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  ratingStars: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ratingStarButton: { width: 34, height: 38, alignItems: 'center', justifyContent: 'center' },
+  ratingSaveButton: {
+    minWidth: 88,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#C8A96B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  ratingSaveDisabled: { opacity: 0.45 },
+  ratingSaveText: { color: '#071B33', fontSize: 13, fontFamily: 'Inter_700Bold' },
   reviews: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
