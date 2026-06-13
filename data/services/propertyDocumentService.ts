@@ -47,9 +47,7 @@ export async function createPropertyDocuments(
   propertyId: string,
   documents: { document_type: PropertyDocumentType; file_url: string }[],
 ): Promise<PropertyDocument[]> {
-  if (!hasAllRequiredPropertyDocuments(documents)) {
-    throw new Error('Para publicar esta propiedad debes completar la documentacion requerida para revision administrativa.');
-  }
+  if (documents.length === 0) return [];
 
   const { data, error } = await getSupabase()
     .from('property_documents')

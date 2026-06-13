@@ -82,6 +82,9 @@ export interface Property {
   status: PropertyListingStatus;
   publication_status: PublicationStatus;
   rejection_reason: string | null;
+  admin_observation: string | null;
+  has_incomplete_documentation: boolean;
+  published_with_observation: boolean;
   legal_disclaimer_accepted: boolean;
   documents_completed: boolean;
   featured: boolean;

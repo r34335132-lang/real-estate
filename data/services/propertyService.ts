@@ -100,15 +100,15 @@ export async function fetchByBroker(brokerId: string): Promise<Property[]> {
 }
 
 export interface CreatePropertyInput {
-  title: string;
-  description: string;
-  category: PropertyCategory;
-  operation_type: OperationType;
-  price: number;
-  location: string;
-  city: string;
-  state: string;
-  size_m2: number;
+  title?: string | null;
+  description?: string | null;
+  category?: PropertyCategory | null;
+  operation_type?: OperationType | null;
+  price?: number | null;
+  location?: string | null;
+  city?: string | null;
+  state?: string | null;
+  size_m2?: number | null;
   bedrooms?: number;
   bathrooms?: number;
   broker_id: string;
@@ -116,6 +116,9 @@ export interface CreatePropertyInput {
   publication_status?: PublicationStatus;
   legal_disclaimer_accepted: boolean;
   documents_completed: boolean;
+  admin_observation?: string | null;
+  has_incomplete_documentation?: boolean;
+  published_with_observation?: boolean;
   has_public_deed?: boolean;
   has_no_lien_certificate?: boolean;
   has_cadastral_certificate?: boolean;
@@ -134,6 +137,10 @@ export async function createProperty(input: CreatePropertyInput): Promise<Proper
       status: 'activa',
       publication_status: input.publication_status ?? 'pending_review',
       rejection_reason: null,
+      admin_observation: input.admin_observation ?? null,
+      has_incomplete_documentation:
+        input.has_incomplete_documentation ?? !input.documents_completed,
+      published_with_observation: input.published_with_observation ?? false,
       legal_disclaimer_accepted: input.legal_disclaimer_accepted,
       documents_completed: input.documents_completed,
       featured: false,

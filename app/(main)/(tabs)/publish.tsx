@@ -24,10 +24,23 @@ import {
   hasAllRequiredPropertyDocuments,
   REQUIRED_PROPERTY_DOCUMENTS,
 } from '@/data/services/propertyDocumentService';
-import { fetchBrokerProfileByUser, upsertBrokerProfile } from '@/data/services/brokerService';
-import type { BrokerProfile, OperationType, PropertyDocumentType } from '@/data/types';
+import {
+  ensureAdminBrokerProfile,
+  fetchApprovedBrokerProfiles,
+  fetchBrokerProfileByUser,
+  upsertBrokerProfile,
+} from '@/data/services/brokerService';
+import type {
+  BrokerProfile,
+  OperationType,
+  PropertyDocumentType,
+  PublicationStatus,
+} from '@/data/types';
 import { useSupabase } from '@/lib/env';
-import { pickAndUploadImage } from '@/lib/storage';
+import {
+  pickAndUploadDocument,
+  pickAndUploadPropertyImages,
+} from '@/lib/storage';
 
 const CATEGORY_OPTIONS: { slug: PropertyCategory; label: string }[] = [
   { slug: 'terreno', label: 'Terreno' },
@@ -63,6 +76,8 @@ export default function PublishScreen() {
 
   const [loadingBroker, setLoadingBroker] = useState(true);
   const [brokerProfile, setBrokerProfile] = useState<BrokerProfile | null>(null);
+  const [approvedBrokers, setApprovedBrokers] = useState<BrokerProfile[]>([]);
+  const [selectedBrokerId, setSelectedBrokerId] = useState('');
   const [savingBroker, setSavingBroker] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -88,17 +103,30 @@ export default function PublishScreen() {
   const [images, setImages] = useState<string[]>([]);
   const [documents, setDocuments] = useState<DraftDocument[]>([]);
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
+  const [adminObservation, setAdminObservation] = useState('');
 
   useEffect(() => {
     let mounted = true;
 
     async function loadBroker() {
-      if (role !== 'broker' || !user?.id || !useSupabase()) {
+      if (!user?.id || !useSupabase()) {
         setLoadingBroker(false);
         return;
       }
 
       try {
+        if (role === 'admin') {
+          let profiles = await fetchApprovedBrokerProfiles();
+          if (profiles.length === 0) {
+            profiles = [await ensureAdminBrokerProfile(user)];
+          }
+          if (!mounted) return;
+          setApprovedBrokers(profiles);
+          setSelectedBrokerId(profiles[0]?.id ?? '');
+          return;
+        }
+        if (role !== 'broker') return;
+
         const profile = await fetchBrokerProfileByUser(user.id);
         if (!mounted) return;
         setBrokerProfile(profile);
@@ -124,12 +152,13 @@ export default function PublishScreen() {
   }, [role, user?.id]);
 
   const documentsCompleted = useMemo(() => hasAllRequiredPropertyDocuments(documents), [documents]);
-  const canSendToReview = brokerProfile?.verification_status === 'approved' && documentsCompleted && acceptedDisclaimer;
+  const canSendToReview =
+    role === 'admin' || brokerProfile?.verification_status === 'approved';
 
   const handleUploadId = async () => {
     try {
       setUploadingId(true);
-      const url = await pickAndUploadImage('broker-document', user?.id);
+      const url = await pickAndUploadDocument('broker-document', user?.id);
       if (url) setIdDocumentUrl(url);
     } catch {
       Alert.alert('Error', 'No se pudo subir tu identificacion.');
@@ -173,10 +202,13 @@ export default function PublishScreen() {
 
     try {
       setUploadingImage(true);
-      const url = await pickAndUploadImage('property-image', user?.id);
-      if (url) setImages((prev) => [...prev, url]);
+      const availableSlots = 20 - images.length;
+      const urls = await pickAndUploadPropertyImages(user?.id, availableSlots);
+      if (urls.length > 0) {
+        setImages((prev) => [...prev, ...urls].slice(0, 20));
+      }
     } catch {
-      Alert.alert('Error', 'No se pudo subir la imagen al servidor.');
+      Alert.alert('Error', 'No se pudieron subir las imagenes al servidor.');
     } finally {
       setUploadingImage(false);
     }
@@ -185,7 +217,7 @@ export default function PublishScreen() {
   const handleUploadDocument = async (documentType: PropertyDocumentType) => {
     try {
       setUploadingDocument(documentType);
-      const url = await pickAndUploadImage('property-document', user?.id);
+      const url = await pickAndUploadDocument('property-document', user?.id);
       if (!url) return;
 
       setDocuments((prev) => [
@@ -199,45 +231,86 @@ export default function PublishScreen() {
     }
   };
 
-  const handleSendToReview = async () => {
-    if (!title.trim() || !price.trim() || !location.trim()) {
-      Alert.alert('Campos requeridos', 'Completa titulo, precio y ubicacion.');
-      return;
-    }
-    if (brokerProfile?.verification_status !== 'approved') {
+  const handleSaveProperty = async (publicationStatus: PublicationStatus) => {
+    if (
+      publicationStatus !== 'draft'
+      && role === 'broker'
+      && brokerProfile?.verification_status !== 'approved'
+    ) {
       Alert.alert('Perfil pendiente', 'Un admin debe aprobar tu perfil de broker antes de publicar.');
       return;
     }
-    if (!documentsCompleted) {
-      Alert.alert('Documentacion requerida', REQUIRED_DOCUMENTS_MESSAGE);
+    if (role === 'admin' && !selectedBrokerId) {
+      Alert.alert('Broker requerido', 'Selecciona un broker para asignar la propiedad.');
       return;
     }
-    if (!acceptedDisclaimer) {
-      Alert.alert('Aviso legal requerido', 'Debes aceptar la declaracion legal antes de enviar a revision.');
+    if (publicationStatus === 'published' && role !== 'admin') {
+      Alert.alert('Accion restringida', 'Solo un admin puede publicar propiedades.');
+      return;
+    }
+    const incomplete =
+      !title.trim()
+      || !price.trim()
+      || !location.trim()
+      || !documentsCompleted
+      || images.length === 0
+      || !acceptedDisclaimer;
+    if (publicationStatus === 'published' && incomplete && !adminObservation.trim()) {
+      Alert.alert(
+        'Observacion requerida',
+        'Escribe una observacion administrativa para publicar una carga incompleta.',
+      );
+      return;
+    }
+    if (publicationStatus === 'pending_review' && incomplete) {
+      Alert.alert(
+        'Carga incompleta',
+        'Carga incompleta: el admin podra revisar y publicar con observacion.',
+      );
+    }
+
+    const assignedBrokerId = role === 'admin' ? selectedBrokerId : brokerProfile?.id;
+    if (!assignedBrokerId) {
+      Alert.alert('Perfil requerido', 'Guarda primero tu perfil de broker.');
       return;
     }
 
     setSubmitting(true);
     try {
       const property = await createProperty({
-        broker_id: brokerProfile.id,
-        title: title.trim(),
-        description: description.trim(),
+        broker_id: assignedBrokerId,
+        title: title.trim() || null,
+        description: description.trim() || null,
         category,
         operation_type: operationType,
-        price: Number(price.replace(/,/g, '')),
-        location: location.trim(),
-        city: location.split(',')[0]?.trim() ?? location,
-        state: location.split(',')[1]?.trim() ?? '',
-        size_m2: Number(area.replace(/,/g, '')) || 0,
+        price: price.trim() ? Number(price.replace(/,/g, '')) : null,
+        location: location.trim() || null,
+        city: location.trim() ? location.split(',')[0]?.trim() : null,
+        state: location.trim() ? location.split(',')[1]?.trim() ?? '' : null,
+        size_m2: area.trim() ? Number(area.replace(/,/g, '')) : null,
         images,
-        publication_status: 'pending_review',
+        publication_status: publicationStatus,
         legal_disclaimer_accepted: acceptedDisclaimer,
-        documents_completed: true,
+        documents_completed: documentsCompleted,
+        has_incomplete_documentation: incomplete,
+        published_with_observation: publicationStatus === 'published' && incomplete,
+        admin_observation:
+          publicationStatus === 'published' && incomplete ? adminObservation.trim() : null,
       });
       await createPropertyDocuments(property.id, documents);
       await queryClient.invalidateQueries({ queryKey: ['properties'] });
-      Alert.alert('Propiedad enviada', 'La propiedad quedo en revision. Solo un admin puede publicarla.');
+      const messages: Record<PublicationStatus, [string, string]> = {
+        draft: ['Borrador guardado', 'Puedes completar la propiedad mas adelante.'],
+        pending_review: ['Propiedad enviada', 'La propiedad quedo en revision administrativa.'],
+        published: [
+          'Propiedad publicada',
+          incomplete
+            ? 'La propiedad se publico con observacion administrativa.'
+            : 'La propiedad se publico correctamente.',
+        ],
+        rejected: ['Propiedad rechazada', 'La propiedad fue marcada como rechazada.'],
+      };
+      Alert.alert(...messages[publicationStatus]);
       resetPropertyForm();
     } catch (error) {
       Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo enviar la propiedad.');
@@ -255,6 +328,7 @@ export default function PublishScreen() {
     setImages([]);
     setDocuments([]);
     setAcceptedDisclaimer(false);
+    setAdminObservation('');
   };
 
   if (role === 'buyer') {
@@ -273,7 +347,7 @@ export default function PublishScreen() {
     );
   }
 
-  if (role === 'broker' && brokerProfile?.verification_status !== 'approved') {
+  if (role === 'broker' && !brokerProfile) {
     return (
       <ScreenShell colors={colors} insetsTop={insets.top} subtitle="Verificacion de broker">
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -284,12 +358,6 @@ export default function PublishScreen() {
           <Text style={[styles.helperText, { color: colors.mutedForeground }]}>
             Tu perfil debe estar aprobado por un admin antes de publicar propiedades.
           </Text>
-          {brokerProfile?.verification_status === 'rejected' && (
-            <Text style={styles.errorText}>
-              Rechazado: {brokerProfile.rejection_reason || 'Documentacion incompleta'}
-            </Text>
-          )}
-
           <ProfileInput label="Nombre completo" value={fullName} onChangeText={setFullName} colors={colors} />
           <ProfileInput label="Telefono" value={phone} onChangeText={setPhone} colors={colors} />
           <ProfileInput label="Correo" value={email} onChangeText={setEmail} colors={colors} />
@@ -325,6 +393,32 @@ export default function PublishScreen() {
 
   return (
     <ScreenShell colors={colors} insetsTop={insets.top} subtitle="Documentacion y revision administrativa">
+      {role === 'broker' && brokerProfile?.verification_status !== 'approved' && (
+        <View style={[styles.noticeCard, { backgroundColor: colors.card, borderColor: '#C8A96B' }]}>
+          <Feather name="info" size={18} color="#C8A96B" />
+          <Text style={[styles.noticeText, { color: colors.foreground }]}>
+            Tu perfil esta {brokerProfile?.verification_status === 'rejected' ? 'rechazado' : 'pendiente'}.
+            Puedes guardar borradores, pero necesitas aprobacion para enviarlos a revision.
+          </Text>
+        </View>
+      )}
+
+      {role === 'admin' && (
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>Broker asignado</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            {approvedBrokers.map((broker) => (
+              <Chip
+                key={broker.id}
+                label={broker.full_name || broker.company_name || 'JC Real Estate'}
+                active={selectedBrokerId === broker.id}
+                onPress={() => setSelectedBrokerId(broker.id)}
+                colors={colors}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
       <View style={styles.field}>
         <Text style={[styles.label, { color: colors.mutedForeground }]}>Categoria</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -379,7 +473,9 @@ export default function PublishScreen() {
           disabled={uploadingImage}
         >
           {uploadingImage ? <ActivityIndicator color={colors.mutedForeground} /> : <Feather name="camera" size={24} color={colors.mutedForeground} />}
-          <Text style={[styles.photoText, { color: colors.mutedForeground }]}>Agregar foto</Text>
+          <Text style={[styles.photoText, { color: colors.mutedForeground }]}>
+            Seleccionar varias fotos
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -428,9 +524,31 @@ export default function PublishScreen() {
         </TouchableOpacity>
       </View>
 
+      {role === 'admin' && (
+        <ProfileInput
+          label="Observacion administrativa"
+          value={adminObservation}
+          onChangeText={setAdminObservation}
+          colors={colors}
+          placeholder="Obligatoria si publicas una carga incompleta"
+          multiline
+        />
+      )}
+
+      <View style={styles.submitActions}>
+        <TouchableOpacity
+          style={[styles.secondarySubmitBtn, { borderColor: '#0F6BFF' }, submitting && { opacity: 0.55 }]}
+          onPress={() => void handleSaveProperty('draft')}
+          disabled={submitting}
+          activeOpacity={0.85}
+        >
+          <Feather name="save" size={18} color="#0F6BFF" />
+          <Text style={styles.secondarySubmitText}>Guardar borrador</Text>
+        </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.submitBtn, (!canSendToReview || submitting) && { opacity: 0.55 }]}
-        onPress={handleSendToReview}
+        onPress={() => void handleSaveProperty('pending_review')}
         disabled={!canSendToReview || submitting}
         activeOpacity={0.85}
       >
@@ -443,6 +561,23 @@ export default function PublishScreen() {
           </>
         )}
       </TouchableOpacity>
+      </View>
+
+      {role === 'admin' && (
+        <TouchableOpacity
+          style={[styles.adminPublishBtn, submitting && { opacity: 0.55 }]}
+          onPress={() => void handleSaveProperty('published')}
+          disabled={submitting}
+          activeOpacity={0.85}
+        >
+          <Feather name="check-circle" size={18} color="#071B33" />
+          <Text style={styles.adminPublishText}>
+            {documentsCompleted && images.length > 0 && acceptedDisclaimer
+              ? 'Publicar completo'
+              : 'Publicar con observacion'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </ScreenShell>
   );
 }
@@ -583,6 +718,36 @@ const styles = StyleSheet.create({
   legalCheckText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.78)', lineHeight: 18 },
   submitBtn: { backgroundColor: '#0F6BFF', borderRadius: 16, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#0F6BFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 6 },
   submitText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#fff' },
+  submitActions: { gap: 10 },
+  secondarySubmitBtn: {
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  secondarySubmitText: { color: '#0F6BFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  adminPublishBtn: {
+    minHeight: 56,
+    borderRadius: 16,
+    backgroundColor: '#C8A96B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  adminPublishText: { color: '#071B33', fontSize: 15, fontFamily: 'Inter_700Bold' },
+  noticeCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  noticeText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 19 },
   restricted: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 16 },
   restrictedIcon: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(200,169,107,0.1)', alignItems: 'center', justifyContent: 'center' },
   restrictedTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', textAlign: 'center' },

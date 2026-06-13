@@ -99,6 +99,50 @@ export async function fetchPendingBrokerProfiles(): Promise<BrokerProfile[]> {
   return (data as Record<string, unknown>[]).map(mapBrokerProfile);
 }
 
+export async function fetchApprovedBrokerProfiles(): Promise<BrokerProfile[]> {
+  if (!useSupabase()) return [];
+
+  const { data, error } = await getSupabase()
+    .from('broker_profiles')
+    .select('*')
+    .eq('verification_status', 'approved')
+    .order('full_name');
+  if (error) throw error;
+  return (data as Record<string, unknown>[]).map(mapBrokerProfile);
+}
+
+export async function ensureAdminBrokerProfile(user: {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+}): Promise<BrokerProfile> {
+  const supabase = getSupabase();
+  const { data: existing, error: existingError } = await supabase
+    .from('broker_profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) return mapBrokerProfile(existing as Record<string, unknown>);
+
+  const { data, error } = await supabase
+    .from('broker_profiles')
+    .insert({
+      user_id: user.id,
+      full_name: user.full_name || 'JC Real Estate',
+      phone: user.phone || '',
+      email: user.email,
+      company_name: 'JC Real Estate',
+      verification_status: 'approved',
+      verified: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapBrokerProfile(data as Record<string, unknown>);
+}
+
 export async function updateBrokerVerificationStatus(
   id: string,
   verificationStatus: BrokerVerificationStatus,

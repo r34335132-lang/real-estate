@@ -23,11 +23,11 @@ const LEGAL_LABELS: Record<LegalStatus, string> = {
 export interface DbProperty {
   id: string;
   broker_id: string | null;
-  title: string;
+  title: string | null;
   description: string | null;
-  category: PropertyCategory;
-  operation_type: OperationType;
-  price: number;
+  category: PropertyCategory | null;
+  operation_type: OperationType | null;
+  price: number | null;
   currency: string | null;
   location: string | null;
   city: string | null;
@@ -43,6 +43,9 @@ export interface DbProperty {
   status: string;
   publication_status?: PublicationStatus | null;
   rejection_reason?: string | null;
+  admin_observation?: string | null;
+  has_incomplete_documentation?: boolean | null;
+  published_with_observation?: boolean | null;
   legal_disclaimer_accepted?: boolean | null;
   documents_completed?: boolean | null;
   featured: boolean | null;
@@ -63,22 +66,24 @@ function toImageSource(url: string | undefined, category: PropertyCategory): Ima
 
 export function mapDbProperty(row: DbProperty): Property {
   const urls = row.images?.filter(Boolean) ?? [];
-  const primary = toImageSource(urls[0], row.category);
+  const category = row.category ?? 'casa';
+  const operationType = row.operation_type ?? 'venta';
+  const primary = toImageSource(urls[0], category);
   const gallery =
     urls.length > 0
-      ? urls.map((u) => toImageSource(u, row.category))
+      ? urls.map((u) => toImageSource(u, category))
       : [primary];
 
   return {
     id: row.id,
     broker_id: row.broker_id ?? '',
     brokerId: row.broker_id ?? '',
-    title: row.title,
+    title: row.title?.trim() || 'Borrador sin titulo',
     description: row.description ?? '',
-    category: row.category,
-    operation_type: row.operation_type,
-    status: row.operation_type,
-    price: Number(row.price),
+    category,
+    operation_type: operationType,
+    status: operationType,
+    price: Number(row.price ?? 0),
     currency: row.currency ?? 'MXN',
     priceUnit: row.currency ?? 'MXN',
     location: row.location ?? `${row.city ?? ''}, ${row.state ?? ''}`,
@@ -97,9 +102,12 @@ export function mapDbProperty(row: DbProperty): Property {
     legalStatus: LEGAL_LABELS[row.legal_status],
     publication_status: row.publication_status ?? 'draft',
     rejection_reason: row.rejection_reason ?? null,
+    admin_observation: row.admin_observation ?? null,
+    has_incomplete_documentation: Boolean(row.has_incomplete_documentation),
+    published_with_observation: Boolean(row.published_with_observation),
     legal_disclaimer_accepted: Boolean(row.legal_disclaimer_accepted),
     documents_completed: Boolean(row.documents_completed),
-    status_legacy: row.operation_type,
+    status_legacy: operationType,
     featured: Boolean(row.featured),
     verified: row.publication_status === 'published' && Boolean(row.documents_completed),
     has_public_deed: Boolean(row.has_public_deed),

@@ -11,6 +11,12 @@ import { fetchPendingReviewProperties, updatePropertyPublicationStatus } from '@
 import type { BrokerProfile } from '@/data/types';
 import type { Property } from '@/data/catalog';
 import { openContactForm } from '@/lib/contactNavigation';
+import {
+  openContactWhatsApp,
+  openSatisfiedClientsPage,
+  SATISFIED_CLIENTS_URL,
+  SUPPORT_WHATSAPP,
+} from '@/lib/support';
 import { SatisfiedClientsButton } from '@/components/SatisfiedClientsButton';
 
 interface LegalOption {
@@ -237,7 +243,7 @@ export default function LegalScreen() {
                     <ReviewRow
                       key={property.id}
                       title={property.title}
-                      subtitle={`${property.location} · ${property.publication_status}`}
+                      subtitle={`${property.location} · ${publicationStatusLabel(property.publication_status)}`}
                       onApprove={() => handlePropertyDecision(property.id, true)}
                       onReject={() => handlePropertyDecision(property.id, false)}
                       colors={colors}
@@ -249,20 +255,48 @@ export default function LegalScreen() {
           </View>
         )}
 
-        {/* Trust Banner */}
-        <View style={styles.trustBanner}>
-          <Text style={styles.trustTitle}>Informacion para decidir</Text>
-          <Text style={styles.trustSubtitle}>
-            Las propiedades publicadas pueden estar sujetas a revision administrativa. La app no sustituye notario, abogado, autoridad registral, institucion financiera ni asesoria profesional. Revisa la informacion y realiza tu propia debida diligencia antes de decidir.
-          </Text>
-          <View style={styles.trustPoints}>
-            {TRUST_POINTS.map((point, i) => (
-              <View key={i} style={styles.trustPoint}>
-                <Feather name="check" size={13} color="#22C55E" />
-                <Text style={styles.trustPointText}>{point}</Text>
-              </View>
-            ))}
+        <View style={[styles.quickContactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.quickContactHeader}>
+            <View style={styles.quickContactIcon}>
+              <Feather name="message-circle" size={22} color="#C8A96B" />
+            </View>
+            <View style={styles.quickContactCopy}>
+              <Text style={[styles.quickContactTitle, { color: colors.foreground }]}>
+                Solicita informacion
+              </Text>
+              <Text style={[styles.quickContactSubtitle, { color: colors.mutedForeground }]}>
+                Consulta nuestros canales de contacto disponibles
+              </Text>
+            </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.whatsappContactButton}
+            onPress={() => void openContactWhatsApp('Hola, quiero solicitar informacion sobre sus servicios inmobiliarios.')}
+            activeOpacity={0.85}
+          >
+            <Feather name="message-circle" size={19} color="#fff" />
+            <View style={styles.quickContactButtonCopy}>
+              <Text style={styles.quickContactButtonTitle}>WhatsApp</Text>
+              <Text style={styles.quickContactButtonSubtitle}>{SUPPORT_WHATSAPP}</Text>
+            </View>
+            <Feather name="external-link" size={17} color="rgba(255,255,255,0.72)" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.websiteContactButton, { borderColor: '#0F6BFF' }]}
+            onPress={() => void openSatisfiedClientsPage()}
+            activeOpacity={0.85}
+          >
+            <Feather name="globe" size={19} color="#0F6BFF" />
+            <View style={styles.quickContactButtonCopy}>
+              <Text style={styles.websiteContactTitle}>Pagina web</Text>
+              <Text style={styles.websiteContactSubtitle} numberOfLines={1}>
+                {SATISFIED_CLIENTS_URL.replace(/^https?:\/\//, '')}
+              </Text>
+            </View>
+            <Feather name="external-link" size={17} color="#0F6BFF" />
+          </TouchableOpacity>
         </View>
 
         {/* Services */}
@@ -337,9 +371,34 @@ export default function LegalScreen() {
         </TouchableOpacity>
 
         <SatisfiedClientsButton />
+
+        <View style={styles.trustBanner}>
+          <Text style={styles.trustTitle}>Informacion para decidir</Text>
+          <Text style={styles.trustSubtitle}>
+            Las propiedades publicadas pueden estar sujetas a revision administrativa. La app no sustituye notario, abogado, autoridad registral, institucion financiera ni asesoria profesional. Revisa la informacion y realiza tu propia debida diligencia antes de decidir.
+          </Text>
+          <View style={styles.trustPoints}>
+            {TRUST_POINTS.map((point, i) => (
+              <View key={i} style={styles.trustPoint}>
+                <Feather name="check" size={13} color="#22C55E" />
+                <Text style={styles.trustPointText}>{point}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
+}
+
+function publicationStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    draft: 'Borrador',
+    pending_review: 'En revision',
+    published: 'Publicado',
+    rejected: 'Rechazado',
+  };
+  return labels[status] ?? status;
 }
 
 function ReviewRow({
@@ -472,6 +531,57 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(34,197,94,0.25)',
+  },
+  quickContactCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    gap: 11,
+  },
+  quickContactHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 2 },
+  quickContactIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(200,169,107,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickContactCopy: { flex: 1 },
+  quickContactTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  quickContactSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
+  whatsappContactButton: {
+    minHeight: 58,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#22C55E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  websiteContactButton: {
+    minHeight: 58,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  quickContactButtonCopy: { flex: 1 },
+  quickContactButtonTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#fff' },
+  quickContactButtonSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: 'rgba(255,255,255,0.78)',
+    marginTop: 2,
+  },
+  websiteContactTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#0F6BFF' },
+  websiteContactSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    color: '#536276',
+    marginTop: 2,
   },
   trustTitle: {
     fontSize: 18,

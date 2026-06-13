@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { decode } from 'base64-arraybuffer';
 
 import { getSupabase } from '@/lib/supabase';
@@ -59,6 +60,80 @@ export async function pickAndUploadImage(
   return data.publicUrl;
 }
 
+export async function pickAndUploadPropertyImages(
+  userId: string | undefined,
+  selectionLimit: number,
+): Promise<string[]> {
+  if (!userId) throw new Error('Necesitas una sesion activa para subir archivos.');
+  if (selectionLimit < 1) return [];
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsMultipleSelection: true,
+    selectionLimit,
+    quality: 0.7,
+    base64: true,
+  });
+  if (result.canceled) return [];
+
+  const supabase = getSupabase();
+  const uploadedUrls: string[] = [];
+
+  for (const [index, asset] of result.assets.entries()) {
+    if (!asset.base64) continue;
+
+    const extension = getFileExtension(asset.fileName, asset.uri, asset.mimeType);
+    const path = `${userId}/property-image-${Date.now()}-${index}.${extension}`;
+    const contentType = asset.mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+    const { error } = await supabase.storage
+      .from('property-images')
+      .upload(path, decode(asset.base64), { contentType, upsert: false });
+    if (error) throw error;
+
+    const { data } = supabase.storage.from('property-images').getPublicUrl(path);
+    uploadedUrls.push(data.publicUrl);
+  }
+
+  return uploadedUrls;
+}
+
+export async function pickAndUploadDocument(
+  kind: Extract<UploadKind, 'broker-document' | 'property-document'>,
+  userId?: string,
+): Promise<string | null> {
+  if (!userId) throw new Error('Necesitas una sesion activa para subir archivos.');
+
+  const config = UPLOAD_CONFIG[kind];
+  const result = await DocumentPicker.getDocumentAsync({
+    type: [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png',
+      'image/heic',
+      'image/heif',
+    ],
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+
+  const asset = result.assets[0];
+  const extension = getFileExtension(asset.name, asset.uri, asset.mimeType);
+  const path = `${userId}/${kind}-${Date.now()}.${extension}`;
+  const response = await fetch(asset.uri);
+  const file = await response.arrayBuffer();
+  const { error } = await getSupabase().storage
+    .from(config.bucket)
+    .upload(path, file, {
+      contentType: asset.mimeType || contentTypeFromExtension(extension),
+      upsert: false,
+    });
+  if (error) throw error;
+  return path;
+}
+
 export async function createSignedDocumentUrl(
   bucket: PrivateDocumentBucket,
   path: string,
@@ -91,4 +166,18 @@ function getFileExtension(
   if (fromName && /^[a-z0-9]{2,5}$/.test(fromName)) return fromName === 'jpeg' ? 'jpg' : fromName;
   const fromMime = mimeType?.split('/').pop()?.toLowerCase();
   return fromMime === 'jpeg' ? 'jpg' : fromMime || 'jpg';
+}
+
+function contentTypeFromExtension(extension: string): string {
+  const types: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+  return types[extension] ?? 'application/octet-stream';
 }

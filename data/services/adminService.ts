@@ -51,11 +51,15 @@ export interface AdminProperty {
   price: number;
   currency: string;
   location: string;
-  category: PropertyCategory;
+  category: PropertyCategory | null;
   images: string[];
   publication_status: PublicationStatus;
   rejection_reason: string | null;
   documents_completed: boolean;
+  legal_disclaimer_accepted: boolean;
+  admin_observation: string | null;
+  has_incomplete_documentation: boolean;
+  published_with_observation: boolean;
   broker: AdminBrokerProfile | null;
   documents: PropertyDocument[];
 }
@@ -196,16 +200,20 @@ export async function fetchAdminProperties(): Promise<AdminProperty[]> {
   return propertyRows.map((row) => ({
     id: row.id as string,
     broker_id: (row.broker_id as string) ?? '',
-    title: (row.title as string) ?? '',
+    title: (row.title as string) ?? 'Borrador sin titulo',
     description: (row.description as string) ?? '',
     price: Number(row.price ?? 0),
     currency: (row.currency as string) ?? 'MXN',
     location: (row.location as string) ?? '',
-    category: row.category as PropertyCategory,
+    category: (row.category as PropertyCategory) ?? null,
     images: ((row.images as string[]) ?? []).filter(Boolean),
     publication_status: (row.publication_status as PublicationStatus) ?? 'draft',
     rejection_reason: (row.rejection_reason as string) ?? null,
     documents_completed: Boolean(row.documents_completed),
+    legal_disclaimer_accepted: Boolean(row.legal_disclaimer_accepted),
+    admin_observation: (row.admin_observation as string) ?? null,
+    has_incomplete_documentation: Boolean(row.has_incomplete_documentation),
+    published_with_observation: Boolean(row.published_with_observation),
     broker: brokerMap.get((row.broker_id as string) ?? '') ?? null,
     documents: documentRows.filter((doc) => doc.property_id === row.id),
   }));
@@ -214,20 +222,26 @@ export async function fetchAdminProperties(): Promise<AdminProperty[]> {
 export async function updateAdminPropertyStatus(
   property: AdminProperty,
   status: Extract<PublicationStatus, 'published' | 'rejected' | 'pending_review'>,
-  rejectionReason: string | null,
+  note: string | null,
+  mode: 'complete' | 'with_observation' = 'complete',
 ): Promise<void> {
-  if (
-    status === 'published'
-    && (
-      property.images.length === 0
-      || !property.documents_completed
-      || property.documents.length === 0
-      || property.documents.some((document) => document.status !== 'approved')
-    )
-  ) {
+  const complete =
+    Boolean(property.title.trim())
+    && property.price > 0
+    && Boolean(property.location.trim())
+    && property.images.length > 0
+    && property.legal_disclaimer_accepted
+    && property.documents_completed
+    && property.documents.length > 0
+    && property.documents.every((document) => document.status === 'approved');
+
+  if (status === 'published' && mode === 'complete' && !complete) {
     throw new Error('La propiedad necesita imagenes y documentacion aprobada antes de publicarse.');
   }
-  if (status === 'rejected' && !rejectionReason?.trim()) {
+  if (status === 'published' && mode === 'with_observation' && !note?.trim()) {
+    throw new Error('Escribe una observacion administrativa para publicar la carga incompleta.');
+  }
+  if (status === 'rejected' && !note?.trim()) {
     throw new Error('Ingresa el motivo de rechazo.');
   }
 
@@ -235,7 +249,12 @@ export async function updateAdminPropertyStatus(
     .from('properties')
     .update({
       publication_status: status,
-      rejection_reason: status === 'rejected' ? rejectionReason?.trim() : null,
+      rejection_reason: status === 'rejected' ? note?.trim() : null,
+      documents_completed: status === 'published' && mode === 'complete' ? true : property.documents_completed,
+      has_incomplete_documentation: status === 'published' ? mode === 'with_observation' : !complete,
+      published_with_observation: status === 'published' && mode === 'with_observation',
+      admin_observation:
+        status === 'published' && mode === 'with_observation' ? note?.trim() : null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', property.id);

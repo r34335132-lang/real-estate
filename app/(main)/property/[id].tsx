@@ -153,6 +153,18 @@ export default function PropertyDetailScreen() {
           <Text style={[styles.location, { color: colors.mutedForeground }]}>{property.location}</Text>
         </View>
 
+        {property.published_with_observation && (
+          <View style={styles.observationCard}>
+            <View style={styles.observationHeader}>
+              <Feather name="alert-circle" size={17} color="#8A6A2F" />
+              <Text style={styles.observationTitle}>Publicada con observacion</Text>
+            </View>
+            <Text style={styles.observationText}>
+              {property.admin_observation || 'La carga documental se encuentra incompleta.'}
+            </Text>
+          </View>
+        )}
+
         {/* Specs */}
         <View style={[styles.specsCard, { backgroundColor: colors.card }]}>
           {property.bedrooms !== undefined && (
@@ -386,6 +398,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
   },
+  observationCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(200,169,107,0.55)',
+    backgroundColor: 'rgba(200,169,107,0.11)',
+    padding: 14,
+    gap: 7,
+  },
+  observationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  observationTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#8A6A2F' },
+  observationText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: '#536276', lineHeight: 20 },
   specsCard: {
     flexDirection: 'row',
     borderRadius: 16,

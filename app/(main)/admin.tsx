@@ -35,6 +35,7 @@ import { assertAdmin } from '@/lib/authorization';
 import { createSignedDocumentUrl, type PrivateDocumentBucket } from '@/lib/storage';
 
 type AdminView = 'users' | 'brokers' | 'properties';
+type PropertyFilter = 'all' | 'draft' | 'pending_review' | 'published' | 'rejected';
 
 export default function AdminScreen() {
   const params = useLocalSearchParams<{ view?: AdminView }>();
@@ -50,6 +51,7 @@ export default function AdminScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [brokers, setBrokers] = useState<AdminBrokerProfile[]>([]);
   const [properties, setProperties] = useState<AdminProperty[]>([]);
+  const [propertyFilter, setPropertyFilter] = useState<PropertyFilter>('all');
   const [reasons, setReasons] = useState<Record<string, string>>({});
 
   const [fullName, setFullName] = useState('');
@@ -140,10 +142,11 @@ export default function AdminScreen() {
   const handlePropertyStatus = async (
     property: AdminProperty,
     status: 'published' | 'rejected',
+    mode: 'complete' | 'with_observation' = 'complete',
   ) => {
     setActionId(property.id);
     try {
-      await updateAdminPropertyStatus(property, status, reasons[property.id] ?? null);
+      await updateAdminPropertyStatus(property, status, reasons[property.id] ?? null, mode);
       await loadAdminData();
     } catch (error) {
       Alert.alert('No se pudo actualizar', error instanceof Error ? error.message : 'Intenta nuevamente.');
@@ -410,22 +413,68 @@ export default function AdminScreen() {
 
           {view === 'properties' && (
             properties.length === 0 ? (
-              <EmptyText text="No hay propiedades pendientes." colors={colors} />
+              <EmptyText text="No hay propiedades registradas." colors={colors} />
             ) : (
-              properties.map((property) => (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterRow}
+                >
+                  {([
+                    ['all', 'Todas'],
+                    ['draft', 'Borrador'],
+                    ['pending_review', 'En revision'],
+                    ['published', 'Publicado'],
+                    ['rejected', 'Rechazado'],
+                  ] as const).map(([value, label]) => (
+                    <ChoiceButton
+                      key={value}
+                      label={label}
+                      active={propertyFilter === value}
+                      onPress={() => setPropertyFilter(value)}
+                    />
+                  ))}
+                </ScrollView>
+
+              {properties
+                .filter((property) => propertyFilter === 'all' || property.publication_status === propertyFilter)
+                .map((property) => {
+                const complete =
+                  Boolean(property.title.trim())
+                  && property.price > 0
+                  && Boolean(property.location.trim())
+                  && property.images.length > 0
+                  && property.legal_disclaimer_accepted
+                  && property.documents_completed
+                  && property.documents.length > 0
+                  && property.documents.every((document) => document.status === 'approved');
+                return (
                 <View key={property.id} style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <View style={styles.flex}>
                       <Text style={[styles.cardTitle, { color: colors.foreground }]}>{property.title}</Text>
                       <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>
-                        {property.location} · {property.category}
+                        {property.location || 'Sin ubicacion'} · {property.category || 'Sin categoria'}
                       </Text>
                     </View>
-                    <StatusBadge status={property.publication_status} />
+                    <StatusBadge
+                      status={
+                        property.published_with_observation
+                          ? 'published_with_observation'
+                          : property.publication_status
+                      }
+                    />
                   </View>
                   <Text style={styles.price}>{formatPrice(property.price)} {property.currency}</Text>
                   <Text style={[styles.description, { color: colors.mutedForeground }]}>{property.description || 'Sin descripcion'}</Text>
                   <Detail label="Broker" value={property.broker?.full_name || property.broker?.email || 'Sin broker'} colors={colors} />
+                  {property.admin_observation ? (
+                    <View style={styles.observationBox}>
+                      <Text style={styles.observationTitle}>Observacion administrativa</Text>
+                      <Text style={styles.observationText}>{property.admin_observation}</Text>
+                    </View>
+                  ) : null}
 
                   {property.images.length > 0 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gallery}>
@@ -485,7 +534,7 @@ export default function AdminScreen() {
                   )}
 
                   <AdminInput
-                    label="Motivo de rechazo"
+                    label="Observacion administrativa o motivo de rechazo"
                     value={reasons[property.id] ?? ''}
                     onChangeText={(value) => setReasons((current) => ({ ...current, [property.id]: value }))}
                     colors={colors}
@@ -493,18 +542,22 @@ export default function AdminScreen() {
                   />
                   <View style={styles.actionRow}>
                     <ActionButton
-                      label="Publicar"
+                      label="Publicar completo"
                       icon="check"
                       color="#22C55E"
-                      disabled={
-                        property.images.length === 0
-                        || !property.documents_completed
-                        || property.documents.length === 0
-                        || property.documents.some((document) => document.status !== 'approved')
-                      }
+                      disabled={!complete}
                       loading={actionId === property.id}
-                      onPress={() => void handlePropertyStatus(property, 'published')}
+                      onPress={() => void handlePropertyStatus(property, 'published', 'complete')}
                     />
+                    <ActionButton
+                      label="Publicar con observacion"
+                      icon="alert-circle"
+                      color="#C8A96B"
+                      loading={actionId === property.id}
+                      onPress={() => void handlePropertyStatus(property, 'published', 'with_observation')}
+                    />
+                  </View>
+                  <View style={styles.actionRow}>
                     <ActionButton
                       label="Rechazar"
                       icon="x"
@@ -514,7 +567,9 @@ export default function AdminScreen() {
                     />
                   </View>
                 </View>
-              ))
+              );
+              })}
+              </>
             )
           )}
         </ScrollView>
@@ -586,6 +641,8 @@ function StatusBadge({ status }: { status: string }) {
   const color =
     status === 'approved' || status === 'published'
       ? '#22C55E'
+      : status === 'published_with_observation'
+        ? '#C8A96B'
       : status === 'rejected'
         ? '#EF4444'
         : status === 'admin'
@@ -619,11 +676,12 @@ function EmptyText({ text, colors }: { text: string; colors: ReturnType<typeof u
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
     pending: 'Pendiente',
-    pending_review: 'Pendiente',
+    pending_review: 'En revision',
     draft: 'Borrador',
     approved: 'Aprobado',
     rejected: 'Rechazado',
     published: 'Publicado',
+    published_with_observation: 'Publicado con observacion',
     buyer: 'Comprador',
     broker: 'Broker',
     admin: 'Admin',
@@ -659,6 +717,7 @@ const styles = StyleSheet.create({
   input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 12, fontSize: 14, fontFamily: 'Inter_400Regular' },
   multiline: { minHeight: 74, paddingTop: 12 },
   choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterRow: { gap: 8, paddingBottom: 2 },
   choice: { minHeight: 38, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: '#DCE3EC', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F7FA' },
   choiceActive: { backgroundColor: '#0F6BFF', borderColor: '#0F6BFF' },
   choiceText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#536276' },
@@ -690,5 +749,15 @@ const styles = StyleSheet.create({
   gallery: { gap: 9 },
   propertyImage: { width: 112, height: 82, borderRadius: 10, backgroundColor: '#E5E9F0' },
   subheading: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  observationBox: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(200,169,107,0.45)',
+    backgroundColor: 'rgba(200,169,107,0.09)',
+    padding: 11,
+    gap: 4,
+  },
+  observationTitle: { fontSize: 11, fontFamily: 'Inter_700Bold', color: '#8A6A2F' },
+  observationText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: '#536276', lineHeight: 18 },
   empty: { minHeight: 150, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20 },
 });
